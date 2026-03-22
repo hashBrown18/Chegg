@@ -1,5 +1,38 @@
 /* Board Styles */
 
+:root {
+  --cell-size: 56px;
+  --label-size: 24px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --cell-size: 44px;
+    --label-size: 20px;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --cell-size: 34px;
+    --label-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --cell-size: 28px;
+    --label-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --cell-size: 24px;
+    --label-size: 12px;
+  }
+}
+
 .board-container {
   display: inline-flex;
   flex-direction: column;
@@ -7,20 +40,18 @@
   flex-shrink: 0;
 }
 
-/* Column headers row */
 .board-col-headers {
   display: flex;
   align-items: center;
 }
 
 .board-corner {
-  width: 24px;
+  width: var(--label-size);
   flex-shrink: 0;
 }
 
 .board-col-label {
-  /* FIXED width — must match .board-cell width exactly */
-  width: 56px;
+  width: var(--cell-size);
   flex-shrink: 0;
   text-align: center;
   font-size: 0.65rem;
@@ -29,7 +60,6 @@
   padding: 0.3rem 0;
 }
 
-/* Rows */
 .board-rows {
   display: flex;
   flex-direction: column;
@@ -42,7 +72,7 @@
 }
 
 .board-row-label {
-  width: 24px;
+  width: var(--label-size);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -52,10 +82,9 @@
   opacity: 0.5;
 }
 
-/* Individual Cell — FIXED SIZE, never collapses */
 .board-cell {
-  width: 56px;
-  height: 56px;
+  width: var(--cell-size);
+  height: var(--cell-size);
   flex-shrink: 0;
   flex-grow: 0;
   display: flex;
@@ -64,7 +93,6 @@
   position: relative;
   cursor: default;
   transition: background 0.12s ease;
-  /* NO aspect-ratio, NO flex:1 — those were the culprits */
 }
 
 .board-cell.dark {
@@ -75,7 +103,6 @@
   background: var(--board-light, #2a2f45);
 }
 
-/* Spawn zones */
 .board-cell.spawn-host {
   background: rgba(131, 140, 229, 0.18);
 }
@@ -92,7 +119,6 @@
   background: rgba(220, 80, 80, 0.28);
 }
 
-/* Highlights */
 .board-cell.highlight-move {
   background: var(--highlight-move, rgba(80, 200, 100, 0.35)) !important;
 }
@@ -105,18 +131,16 @@
   background: var(--highlight-ability, rgba(255, 200, 50, 0.35)) !important;
 }
 
-/* Move dot for empty highlighted cells */
 .board-cell.highlight-move:not(:has(.minion-piece))::after {
   content: '';
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: calc(var(--cell-size) * 0.28);
+  height: calc(var(--cell-size) * 0.28);
   border-radius: 50%;
   background: rgba(80, 200, 100, 0.7);
   pointer-events: none;
 }
 
-/* Attack ring */
 .board-cell.highlight-attack::before {
   content: '';
   position: absolute;
