@@ -1,0 +1,80 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#000000",
+      "layout": "none",
+      "children": [
+        {
+          "type": "text",
+          "id": "q45Qp",
+          "x": 187,
+          "y": 25,
+          "fill": "#ffffff",
+          "content": "Deck Building\n",
+          "fontFamily": "Inter",
+          "fontSize": 70,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "Wrppa",
+          "x": 78,
+          "y": 130,
+          "fill": "#cccccc00",
+          "width": 658,
+          "height": 194,
+          "stroke": {
+            "align": "inside",
+            "thickness": 3,
+            "fill": "#ffffff"
+          }
+        },
+        {
+          "type": "text",
+          "id": "rWMZ9",
+          "x": 338,
+          "y": 217,
+          "fill": "#ffffff",
+          "content": "{To Choose Eggs)",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "U4oG8",
+          "x": 80,
+          "y": 351,
+          "fill": "#cccccc00",
+          "width": 656,
+          "height": 199,
+          "stroke": {
+            "align": "inside",
+            "thickness": 3,
+            "fill": "#ffffff"
+          }
+        },
+        {
+          "type": "text",
+          "id": "iKRMu",
+          "x": 344,
+          "y": 441,
+          "fill": "#ffffff",
+          "content": "(Chosen eggs)",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        }
+      ]
+    }
+  ]
+}

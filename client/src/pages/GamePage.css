@@ -1,0 +1,151 @@
+/* GamePage — Pure black background per spec */
+
+.gamepage {
+  width: 100vw;
+  height: 100vh;
+  background: #000000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--on-surface);
+}
+
+/* ── Top Bar ── */
+.gamepage-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: rgba(10, 10, 10, 0.95);
+  border-bottom: 1px solid rgba(74, 69, 79, 0.3);
+  z-index: 10;
+  flex-shrink: 0;
+  gap: 1rem;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 200px;
+}
+
+.topbar-logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lavender);
+}
+
+.topbar-vs {
+  font-size: 0.75rem;
+  color: var(--on-surface-variant);
+  opacity: 0.6;
+}
+
+.topbar-center {
+  display: flex;
+  justify-content: center;
+  flex: 1;
+}
+
+.topbar-right {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 200px;
+}
+
+/* ── Main layout ── */
+.gamepage-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebars */
+.gamepage-sidebar-left,
+.gamepage-sidebar-right {
+  width: 170px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem 0.75rem;
+  overflow-y: auto;
+}
+
+.sidebar-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-btn {
+  font-size: 0.7rem;
+  padding: 0.5rem 0.75rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
+}
+
+.end-turn-btn {
+  font-size: 0.73rem;
+  padding: 0.625rem;
+  text-align: center;
+}
+
+/* ── Board area — FIXED, no shapeshifting ── */
+.gamepage-board-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/*
+  Force every board cell to be a fixed square.
+  The board has 8 cols + 1 label col = 9 columns
+  and 10 rows + 1 label row = 11 rows.
+  We pick a cell size that fits the available space.
+  56px per cell is a good default — override in Board.jsx if needed.
+*/
+.gamepage-board-area .board-container {
+  /* do NOT set width/height here — let Board control its own size */
+  flex-shrink: 0;
+}
+
+/* These rules STOP cells from collapsing when empty */
+.gamepage-board-area .board-cell {
+  /* width and height are set inline in Board.jsx — just enforce min sizes here */
+  min-width: 48px !important;
+  min-height: 48px !important;
+  flex-shrink: 0 !important;
+}
+
+.gamepage-board-area .board-row {
+  display: flex !important;
+  flex-shrink: 0 !important;
+}
+
+/* ── Hand area at bottom ── */
+.gamepage-hand-area {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(74, 69, 79, 0.25);
+  background: rgba(10, 10, 10, 0.9);
+  padding: 0.625rem 1rem 0.75rem;
+}
+
+/* Loading state */
+.gamepage-loading {
+  min-height: 100vh;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-surface-variant);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+}

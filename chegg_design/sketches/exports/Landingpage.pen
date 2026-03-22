@@ -1,0 +1,95 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#000000",
+      "layout": "none",
+      "children": [
+        {
+          "type": "text",
+          "id": "2sz67",
+          "x": 321,
+          "y": 66,
+          "fill": "#ffffff",
+          "content": "Chegg",
+          "fontFamily": "Inter",
+          "fontSize": 50,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "avvUS",
+          "x": 250,
+          "y": 354,
+          "fill": "#ffffff",
+          "content": "join room\n",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "N2N5h",
+          "x": 562,
+          "y": 354,
+          "fill": "#ffffff",
+          "content": "create room\n",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "AWvz3",
+          "x": 204,
+          "y": 346,
+          "fill": "#cccccc00",
+          "width": 164,
+          "height": 36,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#ffffff"
+          }
+        },
+        {
+          "type": "rectangle",
+          "id": "GgUum",
+          "x": 204,
+          "y": 346,
+          "fill": "#cccccc00",
+          "width": 164,
+          "height": 36,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#ffffff"
+          }
+        },
+        {
+          "type": "rectangle",
+          "id": "e7o9H",
+          "x": 538,
+          "y": 346.00000000000006,
+          "rotation": -360,
+          "fill": "#cccccc00",
+          "width": 140,
+          "height": 34,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#ffffff"
+          }
+        }
+      ]
+    }
+  ]
+}

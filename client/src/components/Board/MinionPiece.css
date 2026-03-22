@@ -1,0 +1,56 @@
+/* MinionPiece Styles */
+
+.minion-piece {
+  width: 82%;
+  height: 82%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.piece-yours {
+  cursor: pointer;
+}
+
+.piece-yours:hover {
+  transform: scale(1.08);
+}
+
+.piece-selected {
+  transform: scale(1.1) !important;
+  box-shadow: 0 0 0 2px var(--lavender), 0 0 12px rgba(214, 185, 252, 0.5);
+}
+
+.piece-active {
+  animation: piece-pulse 2s ease-in-out infinite;
+}
+
+@keyframes piece-pulse {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 8px rgba(214, 185, 252, 0.3); }
+}
+
+.piece-img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  display: block;
+}
+
+/* Owner color indicator dot at bottom of piece */
+.piece-indicator {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.indicator-host  { background: #5599ff; box-shadow: 0 0 4px rgba(85, 153, 255, 0.7); }
+.indicator-guest { background: #ff5555; box-shadow: 0 0 4px rgba(255, 85, 85, 0.7); }

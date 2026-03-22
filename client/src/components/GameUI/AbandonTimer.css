@@ -1,0 +1,25 @@
+/* AbandonTimer */
+.abandon-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  background: rgba(255, 90, 50, 0.15);
+  border: 1px solid rgba(255, 90, 50, 0.4);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  animation: fadeIn 0.3s ease;
+}
+
+.timer-icon { font-size: 0.9rem; }
+
+.timer-msg {
+  font-size: 0.78rem;
+  color: var(--on-surface);
+}
+
+.timer-count {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ff7040;
+  margin-left: auto;
+}

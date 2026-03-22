@@ -1,0 +1,139 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#000000",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "id": "hlwnJ",
+          "x": 277,
+          "y": 108,
+          "fill": "#CCCCCC",
+          "width": 266,
+          "height": 374
+        },
+        {
+          "type": "text",
+          "id": "DZesQ",
+          "x": 364,
+          "y": 285,
+          "fill": "#000000",
+          "content": "(The Board)",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "hHRU8",
+          "x": 560,
+          "y": 108,
+          "fill": "#CCCCCC",
+          "width": 124,
+          "height": 222
+        },
+        {
+          "type": "rectangle",
+          "id": "iPUJr",
+          "x": 147,
+          "y": 113,
+          "fill": "#CCCCCC",
+          "width": 106,
+          "height": 209
+        },
+        {
+          "type": "text",
+          "id": "N3Gx5",
+          "x": 575,
+          "y": 129,
+          "fill": "#000000",
+          "content": "(Your mana)",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "owIMx",
+          "x": 154,
+          "y": 120,
+          "fill": "#000000",
+          "content": "(opponent's\nmana)",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "xEdGY",
+          "x": 108,
+          "y": 496,
+          "fill": "#CCCCCC",
+          "width": 640,
+          "height": 76
+        },
+        {
+          "type": "text",
+          "id": "PEJBx",
+          "x": 389,
+          "y": 528,
+          "fill": "#000000",
+          "content": "Your eggs\n",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "AWfXE",
+          "x": 310,
+          "y": 36,
+          "fill": "#CCCCCC",
+          "width": 188,
+          "height": 43
+        },
+        {
+          "type": "text",
+          "id": "qGPNT",
+          "x": 366,
+          "y": 47,
+          "fill": "#000000",
+          "content": "Whose turn\n",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "2h6DL",
+          "x": 6,
+          "y": 7,
+          "fill": "#CCCCCC",
+          "width": 280,
+          "height": 31
+        },
+        {
+          "type": "text",
+          "id": "ZLNee",
+          "x": 21,
+          "y": 13,
+          "fill": "#000000",
+          "content": "(Name of people that are in room)",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        }
+      ]
+    }
+  ]
+}

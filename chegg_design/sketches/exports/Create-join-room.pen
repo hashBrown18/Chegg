@@ -1,0 +1,186 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#000000",
+      "layout": "none",
+      "children": [
+        {
+          "type": "text",
+          "id": "nEhJ1",
+          "x": 171,
+          "y": 60,
+          "fill": "#ffffff",
+          "content": "Create Room",
+          "fontFamily": "Inter",
+          "fontSize": 80,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "M4I2u",
+          "x": 335,
+          "y": 292,
+          "fill": "#ffffffb3",
+          "content": "Enter username..\n",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "gWkuh",
+          "x": 326,
+          "y": 289,
+          "fill": "#cccccc00",
+          "width": 145,
+          "height": 31,
+          "stroke": {
+            "align": "inside",
+            "thickness": 2,
+            "fill": "#ffffff"
+          }
+        },
+        {
+          "type": "text",
+          "id": "23iw5",
+          "x": 360,
+          "y": 376,
+          "fill": "#ffffff",
+          "textGrowth": "fixed-width-height",
+          "width": 154,
+          "height": 35,
+          "content": "Create room\n",
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "VxpoW",
+          "x": 359,
+          "y": 376,
+          "fill": "#cccccc00",
+          "width": 80,
+          "height": 17,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#ffffff"
+          }
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "gjh3e",
+      "x": 869,
+      "y": 1,
+      "name": "Frame 1",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#000000",
+      "layout": "none",
+      "children": [
+        {
+          "type": "text",
+          "id": "VSgh4",
+          "x": 224,
+          "y": 86,
+          "fill": "#ffffff",
+          "content": "Join Room",
+          "fontFamily": "Inter",
+          "fontSize": 80,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "6Anb3",
+          "x": 367,
+          "y": 291,
+          "fill": "#ffffff",
+          "textGrowth": "fixed-width-height",
+          "width": 82,
+          "height": 33,
+          "content": "enter code\n",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "XtjXs",
+          "x": 343,
+          "y": 412,
+          "fill": "#ffffff",
+          "content": "enter username..",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "Qd7kv",
+          "x": 367,
+          "y": 532,
+          "fill": "#ffffff",
+          "content": "join room\n",
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "rectangle",
+          "id": "78hG1",
+          "x": 364,
+          "y": 287,
+          "fill": "#cccccc00",
+          "width": 93,
+          "height": 31,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#ffffff"
+          }
+        },
+        {
+          "type": "rectangle",
+          "id": "vaSi8",
+          "x": 343,
+          "y": 415,
+          "fill": "#cccccc00",
+          "width": 130,
+          "height": 21,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#ffffff"
+          }
+        },
+        {
+          "type": "rectangle",
+          "id": "QZXw4",
+          "x": 338,
+          "y": 523,
+          "fill": "#cccccc00",
+          "width": 119,
+          "height": 37,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#ffffff"
+          }
+        }
+      ]
+    }
+  ]
+}

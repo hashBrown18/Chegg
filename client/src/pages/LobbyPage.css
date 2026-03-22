@@ -1,0 +1,207 @@
+/* Lobby Page Styles (Create Room / Join Room) */
+
+.lobby {
+  min-height: 100vh;
+  background: var(--deep-purple);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.lobby-header {
+  padding: 3rem 2rem 1rem;
+  text-align: center;
+}
+
+.lobby-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lavender);
+  margin-bottom: 0.25rem;
+}
+
+.lobby-tagline {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--on-surface-variant);
+  opacity: 0.6;
+}
+
+.lobby-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem 3rem;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Card */
+.lobby-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 2.25rem;
+  animation: fadeInUp 0.45s var(--ease-out) both;
+  background: rgba(14, 20, 27, 0.88);
+  border-color: rgba(74, 69, 79, 0.35);
+}
+
+.lobby-card-header {
+  margin-bottom: 1.75rem;
+}
+
+.lobby-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--on-surface);
+  margin-bottom: 0.35rem;
+}
+
+.lobby-subtitle {
+  font-size: 0.85rem;
+  color: var(--on-surface-variant);
+}
+
+/* Form */
+.lobby-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.form-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--on-surface-variant);
+}
+
+/* Meta row */
+.lobby-meta {
+  display: flex;
+  gap: 2rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid rgba(74, 69, 79, 0.3);
+  border-bottom: 1px solid rgba(74, 69, 79, 0.3);
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.meta-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--on-surface-variant);
+  opacity: 0.6;
+}
+
+.meta-value {
+  font-size: 0.8rem;
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.meta-online {
+  color: var(--tertiary);
+}
+
+.lobby-submit-btn {
+  width: 100%;
+  padding: 1rem;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  background: var(--lavender);
+  color: var(--on-primary);
+}
+
+.lobby-submit-btn:hover:not(:disabled) {
+  background: var(--primary);
+  box-shadow: 0 0 24px rgba(214, 185, 252, 0.35);
+}
+
+.lobby-version {
+  text-align: center;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  opacity: 0.4;
+}
+
+/* Back button */
+.lobby-back {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--on-surface-variant);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  padding: 0.5rem;
+}
+
+.lobby-back:hover {
+  opacity: 1;
+  color: var(--lavender);
+}
+
+/* Code display (after room created) */
+.lobby-code-display {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.code-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--on-surface-variant);
+  margin-bottom: 0.75rem;
+}
+
+.code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.code-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--lavender);
+}
+
+.code-copy-btn {
+  font-size: 0.7rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.lobby-waiting {
+  margin-top: 0.75rem;
+  font-size: 0.72rem;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(80, 32, 122, 0.3);
+  border-top-color: var(--on-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}

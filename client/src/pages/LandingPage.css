@@ -1,0 +1,167 @@
+/* Landing Page Styles */
+
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--deep-purple);
+}
+
+.landing-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+  background: rgba(80, 32, 122, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(214, 185, 252, 0.1);
+}
+
+.landing-logo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lavender);
+}
+
+.landing-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6rem 2rem 3rem;
+  gap: 0;
+  animation: fadeInUp 0.6s var(--ease-out) both;
+}
+
+.landing-eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  color: var(--lavender);
+  opacity: 0.7;
+  margin-bottom: 1.5rem;
+  animation: fadeInUp 0.6s var(--ease-out) 0.05s both;
+}
+
+.landing-title {
+  font-size: clamp(4rem, 12vw, 9rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+  color: var(--lavender);
+  margin-bottom: 1rem;
+  animation: fadeInUp 0.6s var(--ease-out) 0.1s both;
+}
+
+.landing-divider {
+  width: 6rem;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--lavender), transparent);
+  margin: 0 auto 1rem;
+  animation: fadeInUp 0.6s var(--ease-out) 0.15s both;
+}
+
+.landing-subtitle {
+  font-size: 1rem;
+  color: var(--on-surface-variant);
+  margin-bottom: 3rem;
+  animation: fadeInUp 0.6s var(--ease-out) 0.18s both;
+}
+
+/* Feature Cards */
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  max-width: 800px;
+  width: 100%;
+  margin-bottom: 3rem;
+  animation: fadeInUp 0.6s var(--ease-out) 0.25s both;
+}
+
+.feature-card {
+  background: rgba(36, 42, 50, 0.6);
+  border: 1px solid rgba(74, 69, 79, 0.4);
+  border-radius: 0.75rem;
+  padding: 1.5rem 1.25rem;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.feature-card:hover {
+  border-color: rgba(131, 140, 229, 0.4);
+  background: rgba(36, 42, 50, 0.9);
+}
+
+.feature-icon {
+  font-size: 1.4rem;
+  color: var(--lavender);
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.feature-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--on-surface);
+  margin-bottom: 0.5rem;
+}
+
+.feature-desc {
+  font-size: 0.8rem;
+  color: var(--on-surface-variant);
+  line-height: 1.5;
+}
+
+/* CTA Buttons */
+.landing-cta {
+  display: flex;
+  gap: 1.25rem;
+  animation: fadeInUp 0.6s var(--ease-out) 0.3s both;
+  margin-bottom: 2rem;
+}
+
+.landing-btn {
+  min-width: 160px;
+  font-size: 0.8rem;
+  padding: 0.875rem 2rem;
+  border-color: var(--lavender);
+  color: var(--lavender);
+}
+
+.landing-btn:hover {
+  background: rgba(214, 185, 252, 0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.landing-online {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--on-surface-variant);
+  opacity: 0.5;
+  animation: fadeInUp 0.5s var(--ease-out) 0.35s both;
+}
+
+@media (max-width: 640px) {
+  .landing-features {
+    grid-template-columns: 1fr;
+  }
+  .landing-cta {
+    flex-direction: column;
+    width: 100%;
+    max-width: 320px;
+  }
+  .landing-btn {
+    width: 100%;
+  }
+}

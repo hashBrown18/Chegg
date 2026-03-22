@@ -1,0 +1,146 @@
+/* Minion Popup Styles */
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.popup-card {
+  background: rgba(26, 32, 39, 0.95);
+  border: 1px solid rgba(131, 140, 229, 0.25);
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 480px;
+  padding: 2rem;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(131, 140, 229, 0.1);
+}
+
+.popup-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(74, 69, 79, 0.3);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.popup-close:hover {
+  background: rgba(74, 69, 79, 0.6);
+  color: var(--on-surface);
+}
+
+.popup-body {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.popup-img-wrap {
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  background: var(--surface-container-high);
+  border-radius: 0.625rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(74, 69, 79, 0.4);
+}
+
+.popup-img {
+  width: 85%;
+  height: 85%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.popup-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.popup-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--on-surface);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.popup-cost-badge {
+  display: inline-block;
+  background: rgba(131, 140, 229, 0.15);
+  border: 1px solid rgba(131, 140, 229, 0.3);
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--periwinkle);
+  letter-spacing: 0.05em;
+  align-self: flex-start;
+}
+
+.popup-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.popup-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.popup-stat-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--on-surface-variant);
+  opacity: 0.7;
+}
+
+.popup-stat-value {
+  font-size: 0.825rem;
+  color: var(--on-surface);
+  line-height: 1.4;
+}
+
+.popup-stat-special .popup-stat-label {
+  color: var(--tertiary);
+  opacity: 1;
+}
+
+.popup-stat-special .popup-stat-value {
+  color: var(--on-surface);
+}
+
+@media (max-width: 480px) {
+  .popup-body {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .popup-cost-badge {
+    align-self: center;
+  }
+}
