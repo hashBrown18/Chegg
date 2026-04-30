@@ -41,8 +41,8 @@ function registerGameHandlers(io, socket, activeGames) {
       filteredMovement = [];
     }
 
-    // Villager movement costs 1 mana — filter out if no mana
-    if (minion.type === 'villager' && gameState.getMana(playerRole) < 1) {
+    // Movement costs 1 mana for ALL minions — filter out if no mana
+    if (gameState.getMana(playerRole) < 1) {
       filteredMovement = [];
     }
 
@@ -144,12 +144,10 @@ function registerGameHandlers(io, socket, activeGames) {
       return;
     }
 
-    // Villager costs 1 mana to move
-    if (minion.type === 'villager') {
-      if (gameState.getMana(playerRole) < 1) {
-        socket.emit('error_message', { message: 'Not enough mana to move Villager' });
-        return;
-      }
+    // Movement costs 1 mana for ALL minions
+    if (gameState.getMana(playerRole) < 1) {
+      socket.emit('error_message', { message: 'Not enough mana to move' });
+      return;
     }
 
     // Validate target is in valid movement squares
@@ -166,14 +164,12 @@ function registerGameHandlers(io, socket, activeGames) {
     gameState.moveMinion(minionInstanceId, col, row);
     minion.hasMovedThisTurn = true;
 
-    // Deduct mana for Villager
-    if (minion.type === 'villager') {
-      gameState.deductMana(playerRole, 1);
-      socket.emit('mana_update', {
-        yourMana: gameState.getMana(playerRole),
-        maxMana: Math.min(gameState.turnNumber, 6),
-      });
-    }
+    // Deduct 1 mana for movement (ALL minions)
+    gameState.deductMana(playerRole, 1);
+    socket.emit('mana_update', {
+      yourMana: gameState.getMana(playerRole),
+      maxMana: Math.min(gameState.turnNumber, 6),
+    });
 
     // Broadcast board update
     io.to(roomCode).emit('board_update', { boardState: gameState.getBoardState() });
@@ -215,8 +211,8 @@ function registerGameHandlers(io, socket, activeGames) {
         const occupancy = buildOccupancyMap(gameState.board);
         const directions = [
           { dc: -1, dr: -1 }, { dc: 0, dr: -1 }, { dc: 1, dr: -1 },
-          { dc: -1, dr: 0 },                       { dc: 1, dr: 0 },
-          { dc: -1, dr: 1 },  { dc: 0, dr: 1 },  { dc: 1, dr: 1 },
+          { dc: -1, dr: 0 }, { dc: 1, dr: 0 },
+          { dc: -1, dr: 1 }, { dc: 0, dr: 1 }, { dc: 1, dr: 1 },
         ];
         const { rowToIndex, indexToRow, isValidCell, ROWS } = require('../game/MinionLogic');
         const cri = rowToIndex(minion.position.row);
@@ -243,7 +239,7 @@ function registerGameHandlers(io, socket, activeGames) {
         const pri = rowToIndex(minion.position.row);
         const diagDirs = [
           { dc: -1, dr: -1 }, { dc: 1, dr: -1 },
-          { dc: -1, dr: 1 },  { dc: 1, dr: 1 },
+          { dc: -1, dr: 1 }, { dc: 1, dr: 1 },
         ];
 
         for (const dir of diagDirs) {
