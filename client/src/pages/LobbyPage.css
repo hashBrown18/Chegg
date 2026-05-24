@@ -195,7 +195,6 @@
   font-size: 0.72rem;
 }
 
-/* Spinner */
 .spinner {
   display: inline-block;
   width: 16px;
@@ -204,4 +203,97 @@
   border-top-color: var(--on-primary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+/* ── 768px — Tablet / large phone ── */
+@media (max-width: 768px) {
+  .lobby-header {
+    padding: 2rem 1.5rem 0.75rem;
+  }
+
+  .lobby-main {
+    padding: 0.75rem 1.25rem 2rem;
+    gap: 1.25rem;
+  }
+
+  .lobby-card {
+    max-width: 100%;
+    padding: 1.75rem;
+  }
+
+  .lobby-title {
+    font-size: 1.5rem;
+  }
+
+  .lobby-meta {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .lobby-submit-btn {
+    width: 100%;
+  }
+
+  .code-value {
+    font-size: 2rem;
+    letter-spacing: 0.2em;
+  }
+}
+
+/* ── 480px — Small phone ── */
+@media (max-width: 480px) {
+  .lobby-header {
+    padding: 1.5rem 1rem 0.5rem;
+  }
+
+  .lobby-logo {
+    font-size: 1.2rem;
+  }
+
+  .lobby-main {
+    padding: 0.5rem 0.875rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .lobby-card {
+    padding: 1.25rem;
+  }
+
+  .lobby-card-header {
+    margin-bottom: 1.25rem;
+  }
+
+  .lobby-title {
+    font-size: 1.3rem;
+  }
+
+  .lobby-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .lobby-form {
+    gap: 1rem;
+  }
+
+  .lobby-meta {
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .lobby-submit-btn {
+    width: 100%;
+    padding: 0.875rem;
+    font-size: 0.78rem;
+  }
+
+  .code-value {
+    font-size: 1.75rem;
+    letter-spacing: 0.15em;
+  }
+
+  .code-row {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }

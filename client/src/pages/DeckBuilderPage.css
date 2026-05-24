@@ -372,3 +372,107 @@
   animation: spin 0.7s linear infinite;
   flex-shrink: 0;
 }
+
+/* ── 768px — Tablet / large phone ── */
+@media (max-width: 768px) {
+  .deckbuilder-header {
+    padding: 0.625rem 1.25rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .deckbuilder-main {
+    padding: 1.25rem 1rem 1rem;
+    gap: 1.75rem;
+  }
+
+  .section-title {
+    font-size: 1.35rem;
+  }
+
+  .minion-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .chosen-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .chosen-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .confirm-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .chosen-section {
+    padding: 1.125rem;
+  }
+}
+
+/* ── 480px — Small phone ── */
+@media (max-width: 480px) {
+  .deckbuilder-header {
+    padding: 0.5rem 0.875rem;
+  }
+
+  .deckbuilder-logo {
+    font-size: 0.95rem;
+  }
+
+  .deckbuilder-header-right {
+    gap: 0.5rem;
+  }
+
+  .deck-counter {
+    font-size: 1.2rem;
+  }
+
+  .deckbuilder-main {
+    padding: 1rem 0.75rem 1rem;
+    gap: 1.25rem;
+  }
+
+  .section-title {
+    font-size: 1.15rem;
+  }
+
+  .minion-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.625rem;
+  }
+
+  .chosen-section {
+    padding: 0.875rem;
+  }
+
+  .chosen-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.625rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .chosen-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .confirm-btn {
+    width: 100%;
+    text-align: center;
+    padding: 0.75rem;
+  }
+
+  .waiting-state {
+    width: 100%;
+    justify-content: center;
+  }
+}

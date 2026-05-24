@@ -12,24 +12,24 @@
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 768px) {
   :root {
-    --cell-size: 34px;
+    --cell-size: 36px;
     --label-size: 16px;
   }
 }
 
 @media (max-width: 480px) {
   :root {
-    --cell-size: 28px;
-    --label-size: 14px;
+    --cell-size: 26px;
+    --label-size: 13px;
   }
 }
 
 @media (max-width: 360px) {
   :root {
-    --cell-size: 24px;
-    --label-size: 12px;
+    --cell-size: 22px;
+    --label-size: 11px;
   }
 }
 

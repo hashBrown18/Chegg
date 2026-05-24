@@ -5,6 +5,20 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0 0.5rem;
+  transition: all 0.4s ease;
+  border-radius: 1rem 1rem 0 0;
+}
+
+/* Subtle background elevation when it's your turn */
+.gamepage[data-is-your-turn='true'] .hand-container {
+  background: rgba(131, 140, 229, 0.05);
+  box-shadow: inset 0 2px 20px rgba(131, 140, 229, 0.03);
+}
+
+.gamepage[data-is-your-turn='true'] .hand-label {
+  color: var(--lavender);
+  opacity: 0.9;
+  text-shadow: 0 0 8px rgba(214, 185, 252, 0.4);
 }
 
 .hand-label {

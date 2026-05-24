@@ -7,17 +7,139 @@
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    border-color 0.35s ease,
+    box-shadow   0.35s ease,
+    background   0.35s ease;
+  position: relative;
+  overflow: hidden;
 }
 
+/* ── Active state glow ── */
+
 .panel-active.panel-blue {
-  border-color: rgba(85, 153, 255, 0.5);
-  box-shadow: 0 0 16px rgba(85, 153, 255, 0.2);
+  border-color: rgba(85, 153, 255, 0.6);
+  background: rgba(20, 30, 60, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(85, 153, 255, 0.18),
+    0 0 24px rgba(85, 153, 255, 0.18),
+    inset 0 0 20px rgba(85, 153, 255, 0.06);
+  animation: panelPulseBlue 2.4s ease-in-out infinite;
 }
 
 .panel-active.panel-red {
-  border-color: rgba(255, 85, 85, 0.5);
-  box-shadow: 0 0 16px rgba(255, 85, 85, 0.2);
+  border-color: rgba(255, 85, 85, 0.6);
+  background: rgba(45, 15, 15, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(255, 85, 85, 0.18),
+    0 0 24px rgba(255, 85, 85, 0.18),
+    inset 0 0 20px rgba(255, 85, 85, 0.06);
+  animation: panelPulseRed 2.4s ease-in-out infinite;
+}
+
+@keyframes panelPulseBlue {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(85,153,255,0.18),
+      0 0 24px rgba(85,153,255,0.18),
+      inset 0 0 20px rgba(85,153,255,0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(85,153,255,0.35),
+      0 0 36px rgba(85,153,255,0.32),
+      inset 0 0 28px rgba(85,153,255,0.12);
+  }
+}
+
+@keyframes panelPulseRed {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(255,85,85,0.18),
+      0 0 24px rgba(255,85,85,0.18),
+      inset 0 0 20px rgba(255,85,85,0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(255,85,85,0.35),
+      0 0 36px rgba(255,85,85,0.32),
+      inset 0 0 28px rgba(255,85,85,0.12);
+  }
+}
+
+/* Active stripe accent along the top edge */
+.panel-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  animation: stripeGlow 2.4s ease-in-out infinite;
+}
+
+.panel-active.panel-blue::before {
+  background: linear-gradient(90deg, transparent, rgba(85, 153, 255, 0.9), transparent);
+}
+
+.panel-active.panel-red::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 85, 85, 0.9), transparent);
+}
+
+@keyframes stripeGlow {
+  0%, 100% { opacity: 0.7; }
+  50%       { opacity: 1; }
+}
+
+/* ── "ACTIVE TURN" badge — floats in the corner ── */
+.panel-active .panel-turn-badge {
+  display: inline-flex;
+}
+
+.panel-turn-badge {
+  display: none; /* hidden when not active */
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.52rem;
+  font-family: var(--font-label);
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  padding: 0.18rem 0.45rem;
+  border-radius: 0.25rem;
+  animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.panel-blue .panel-turn-badge {
+  color: #80b8ff;
+  background: rgba(85, 153, 255, 0.14);
+  border: 1px solid rgba(85, 153, 255, 0.3);
+}
+
+.panel-red .panel-turn-badge {
+  color: #ffaaaa;
+  background: rgba(255, 85, 85, 0.14);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+}
+
+.panel-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  animation: badgeDotPulse 1.5s ease-in-out infinite;
+}
+
+.panel-blue .panel-badge-dot  { background: #5599ff; }
+.panel-red  .panel-badge-dot  { background: #ff5555; }
+
+@keyframes badgeDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes badgePop {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* Name row */
@@ -32,10 +154,19 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  transition: box-shadow 0.35s ease;
 }
 
 .dot-blue { background: #5599ff; box-shadow: 0 0 6px rgba(85,153,255,0.6); }
 .dot-red  { background: #ff5555; box-shadow: 0 0 6px rgba(255,85,85,0.6); }
+
+/* Dot glows brighter when this panel is active */
+.panel-active.panel-blue .panel-dot {
+  box-shadow: 0 0 10px rgba(85, 153, 255, 0.9), 0 0 20px rgba(85, 153, 255, 0.4);
+}
+.panel-active.panel-red .panel-dot {
+  box-shadow: 0 0 10px rgba(255, 85, 85, 0.9), 0 0 20px rgba(255, 85, 85, 0.4);
+}
 
 .panel-username {
   font-size: 0.875rem;
@@ -45,6 +176,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
 }
 
 /* Mana */

@@ -1,0 +1,135 @@
+/* OpponentDisconnectBanner — semi-transparent overlay shown when opponent drops */
+
+.opp-disconnect-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  pointer-events: none; /* clicks pass through to the board */
+  padding-top: 5rem;
+  animation: fadeIn 0.3s ease both;
+}
+
+/* ── Floating pill card ── */
+.opp-disconnect-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(14, 20, 27, 0.94);
+  border: 1px solid rgba(255, 130, 50, 0.35);
+  border-radius: 0.875rem;
+  padding: 1rem 1.5rem;
+  max-width: 480px;
+  width: calc(100% - 2rem);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+  animation: slideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.opp-disconnect-card--urgent {
+  border-color: rgba(255, 60, 60, 0.55);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.6),
+    0 0 24px rgba(255, 60, 60, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+  animation: slideDown 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+             urgentPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes urgentPulse {
+  0%, 100% { box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 24px rgba(255,60,60,0.15); }
+  50%       { box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 40px rgba(255,60,60,0.35); }
+}
+
+/* ── Icon ── */
+.opp-disconnect-icon {
+  font-size: 1.75rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ── Text ── */
+.opp-disconnect-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.opp-disconnect-msg {
+  font-size: 0.875rem;
+  color: var(--on-surface, #dde3ed);
+  line-height: 1.4;
+  margin: 0 0 0.2rem;
+}
+
+.opp-disconnect-hint {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--on-surface-variant, #ccc4d0);
+  opacity: 0.6;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* ── Timer ── */
+.opp-disconnect-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 44px;
+}
+
+.opp-timer-count {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #ff9040;
+  line-height: 1;
+}
+
+.opp-disconnect-timer--urgent .opp-timer-count {
+  color: #ff4040;
+  animation: timerBlink 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes timerBlink {
+  from { opacity: 1; }
+  to   { opacity: 0.5; }
+}
+
+.opp-timer-unit {
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  color: var(--on-surface-variant, #ccc4d0);
+  opacity: 0.6;
+  text-transform: uppercase;
+  margin-top: 0.1rem;
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .opp-disconnect-overlay {
+    padding-top: 4rem;
+  }
+
+  .opp-disconnect-card {
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .opp-disconnect-msg {
+    font-size: 0.8rem;
+  }
+
+  .opp-timer-count {
+    font-size: 1.4rem;
+  }
+}

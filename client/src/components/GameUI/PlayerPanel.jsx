@@ -11,10 +11,14 @@ export default function PlayerPanel({ username, mana, maxMana, deckCount, handCo
 
   return (
     <div className={`player-panel ${isActive ? 'panel-active' : ''} panel-${dotColor}`}>
-      {/* Player name */}
+      {/* Player name + active badge */}
       <div className="panel-name-row">
         <span className={`panel-dot dot-${dotColor}`} />
         <span className="panel-username font-display">{username || '...'}</span>
+        <span className="panel-turn-badge font-label" aria-hidden="true">
+          <span className="panel-badge-dot" />
+          Active
+        </span>
       </div>
 
       {/* Mana */}

@@ -17,9 +17,11 @@ import Board from '../components/Board/Board.jsx'
 import PlayerPanel from '../components/GameUI/PlayerPanel.jsx'
 import Hand from '../components/GameUI/Hand.jsx'
 import TurnIndicator from '../components/GameUI/TurnIndicator.jsx'
-import AbandonTimer from '../components/GameUI/AbandonTimer.jsx'
 import RulesPanel from '../components/GameUI/RulesPanel.jsx'
 import WinScreen from '../components/GameUI/WinScreen.jsx'
+import ReconnectOverlay from '../components/GameUI/ReconnectOverlay.jsx'
+import OpponentDisconnectBanner from '../components/GameUI/OpponentDisconnectBanner.jsx'
+import MoveErrorToast from '../components/GameUI/MoveErrorToast.jsx'
 import './GamePage.css'
 
 export default function GamePage() {
@@ -48,8 +50,12 @@ export default function GamePage() {
 
   // ── UI State ──
   const [showRules, setShowRules] = useState(false)
-  const [winData, setWinData] = useState(null) // { winner, loser, winnerRole }
-  const [disconnectData, setDisconnectData] = useState(null) // { message, timeoutSeconds }
+  const [winData, setWinData] = useState(null)           // { winner, loser, winnerRole }
+  // Opponent disconnected (shown to the waiting player)
+  const [opponentDisconnect, setOpponentDisconnect] = useState(null) // { message, timeoutSeconds }
+  // Self disconnected (shown to the player who lost connection)
+  const [showReconnectOverlay, setShowReconnectOverlay] = useState(false)
+  const [moveError, setMoveError] = useState(null)       // { message }
 
   // Track opponent mana changes through turn_change
   const opponentManaRef = useRef(0)
@@ -67,9 +73,14 @@ export default function GamePage() {
       } catch {}
     }
 
+    // ── Game events ──
     socket.on('game_start', (data) => {
       sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
       applyGameStart(data)
+      // If this was a reconnection the overlay can be dismissed
+      if (data.isReconnection) {
+        setShowReconnectOverlay(false)
+      }
     })
 
     socket.on('board_update', ({ boardState: bs }) => {
@@ -106,21 +117,34 @@ export default function GamePage() {
     })
 
     socket.on('game_over', (data) => {
+      setShowReconnectOverlay(false)
+      setOpponentDisconnect(null)
       setWinData(data)
     })
 
+    socket.on('invalid_move', ({ message, reason }) => {
+      setMoveError({ message: reason || message })
+    })
+
+    // ── Opponent disconnect / reconnect events (shown to the WAITING player) ──
     socket.on('opponent_disconnected', ({ message, timeoutSeconds }) => {
-      setDisconnectData({ message, timeoutSeconds })
+      setOpponentDisconnect({ message, timeoutSeconds })
     })
 
-    socket.on('opponent_reconnected', ({ message }) => {
-      setDisconnectData(null)
+    socket.on('opponent_reconnected', () => {
+      setOpponentDisconnect(null)
     })
 
-    socket.on('abandon_win', ({ message }) => {
-      // Show as a win for us
+    socket.on('abandon_win', () => {
       setWinData({ winner: 'You', loser: 'Opponent', winnerRole: yourRole })
-      setDisconnectData(null)
+      setOpponentDisconnect(null)
+    })
+
+    // ── Self disconnect/reconnect (shown to the DISCONNECTED player) ──
+    socket.on('disconnect', (reason) => {
+      // Don't show overlay for deliberate client-side disconnects
+      if (reason === 'io client disconnect') return
+      setShowReconnectOverlay(true)
     })
 
     return () => {
@@ -133,9 +157,11 @@ export default function GamePage() {
       socket.off('turn_change')
       socket.off('valid_moves')
       socket.off('game_over')
+      socket.off('invalid_move')
       socket.off('opponent_disconnected')
       socket.off('opponent_reconnected')
       socket.off('abandon_win')
+      socket.off('disconnect')
     }
   }, [yourRole])
 
@@ -287,11 +313,13 @@ export default function GamePage() {
     setWinData(null)
     clearSelections()
     sessionStorage.removeItem('chegg_game_data')
+    sessionStorage.removeItem('chegg_room_code')
     navigate('/deck')
   }
 
   const handleLeave = () => {
     sessionStorage.removeItem('chegg_game_data')
+    sessionStorage.removeItem('chegg_room_code')
     socket.disconnect()
     navigate('/')
   }
@@ -333,7 +361,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="gamepage">
+    <div className="gamepage" data-turn={currentTurn} data-is-your-turn={isYourTurn}>
       {/* ── Top Bar ── */}
       <header className="gamepage-topbar">
         <div className="topbar-left">
@@ -351,14 +379,7 @@ export default function GamePage() {
             turnNumber={turnNumber}
           />
         </div>
-        <div className="topbar-right">
-          {disconnectData && (
-            <AbandonTimer
-              initialSeconds={disconnectData.timeoutSeconds}
-              message={disconnectData.message}
-            />
-          )}
-        </div>
+        <div className="topbar-right" />
       </header>
 
       {/* ── Main Layout ── */}
@@ -402,14 +423,24 @@ export default function GamePage() {
         <aside className="gamepage-sidebar-right">
           <PlayerPanel {...guestPanel} />
 
-          <button
-            id="btn-end-turn"
-            className={`btn ${isYourTurn ? 'btn-primary' : 'btn-ghost'} end-turn-btn`}
-            onClick={handleEndTurn}
-            disabled={!isYourTurn}
-          >
-            {isYourTurn ? 'End Turn →' : 'Waiting...'}
-          </button>
+          <div style={{ position: 'relative', marginTop: 'auto' }}>
+            {moveError && (
+              <MoveErrorToast 
+                message={moveError.message} 
+                onClose={() => setMoveError(null)} 
+              />
+            )}
+            
+            <button
+              id="btn-end-turn"
+              className={`btn ${isYourTurn ? 'btn-primary' : 'btn-ghost'} end-turn-btn`}
+              onClick={handleEndTurn}
+              disabled={!isYourTurn}
+              style={{ width: '100%' }}
+            >
+              {isYourTurn ? 'End Turn →' : 'Waiting...'}
+            </button>
+          </div>
         </aside>
       </div>
 
@@ -426,6 +457,20 @@ export default function GamePage() {
 
       {/* ── Overlays ── */}
       {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
+
+      {/* Shown to the player waiting for opponent to come back */}
+      {opponentDisconnect && !winData && (
+        <OpponentDisconnectBanner
+          message={opponentDisconnect.message}
+          timeoutSeconds={opponentDisconnect.timeoutSeconds}
+        />
+      )}
+
+      {/* Shown to the player who themselves disconnected */}
+      {showReconnectOverlay && !winData && (
+        <ReconnectOverlay onGiveUp={handleLeave} />
+      )}
+
       {winData && (
         <WinScreen
           winnerUsername={winData.winner}

@@ -57,6 +57,7 @@ export default function LobbyPage({ mode }) {
 
     // ── CREATE ROOM listeners ──
     socket.on('room_created', ({ roomCode: code }) => {
+      sessionStorage.setItem('chegg_room_code', code)  // persist for reconnection
       setGeneratedCode(code)
       setStatus('Waiting for opponent...')
       setLoading(false)
@@ -70,6 +71,7 @@ export default function LobbyPage({ mode }) {
 
     // ── JOIN ROOM listeners ──
     socket.on('room_joined', ({ roomCode: code, opponentUsername }) => {
+      sessionStorage.setItem('chegg_room_code', code)  // persist for reconnection
       setStatus(`Joining room ${code}... Heading to deck builder!`)
       setTimeout(() => navigate('/deck'), 600)
     })
