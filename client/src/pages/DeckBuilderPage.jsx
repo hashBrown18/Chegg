@@ -127,6 +127,8 @@ export default function DeckBuilderPage() {
     socket.on('game_start', (data) => {
       // Store initial game data in sessionStorage for GamePage
       sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
+      const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
+      if (username) sessionStorage.setItem('chegg_username', username)
       navigate('/game')
     })
 

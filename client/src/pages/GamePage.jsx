@@ -66,6 +66,9 @@ export default function GamePage() {
 
     // Restore from sessionStorage (set by DeckBuilderPage when game_start comes in)
     const stored = sessionStorage.getItem('chegg_game_data')
+    const roomCode = sessionStorage.getItem('chegg_room_code')
+    const username = sessionStorage.getItem('chegg_username')
+
     if (stored) {
       try {
         const data = JSON.parse(stored)
@@ -73,9 +76,17 @@ export default function GamePage() {
       } catch {}
     }
 
+    if (roomCode && username) {
+      // Re-join the room on the server side to ensure latest state and socket association
+      console.log(`[CHEGG] Rejoining room ${roomCode} as ${username}`)
+      socket.emit('rejoin_game', { roomCode, username })
+    }
+
     // ── Game events ──
     socket.on('game_start', (data) => {
       sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
+      const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
+      if (username) sessionStorage.setItem('chegg_username', username)
       applyGameStart(data)
       // If this was a reconnection the overlay can be dismissed
       if (data.isReconnection) {
@@ -314,12 +325,14 @@ export default function GamePage() {
     clearSelections()
     sessionStorage.removeItem('chegg_game_data')
     sessionStorage.removeItem('chegg_room_code')
+    sessionStorage.removeItem('chegg_username')
     navigate('/deck')
   }
 
   const handleLeave = () => {
     sessionStorage.removeItem('chegg_game_data')
     sessionStorage.removeItem('chegg_room_code')
+    sessionStorage.removeItem('chegg_username')
     socket.disconnect()
     navigate('/')
   }
@@ -422,26 +435,19 @@ export default function GamePage() {
         {/* Right sidebar */}
         <aside className="gamepage-sidebar-right">
           <PlayerPanel {...guestPanel} />
-
-          <div style={{ position: 'relative', marginTop: 'auto' }}>
-            {moveError && (
-              <MoveErrorToast 
-                message={moveError.message} 
-                onClose={() => setMoveError(null)} 
-              />
-            )}
-            
-            <button
-              id="btn-end-turn"
-              className={`btn ${isYourTurn ? 'btn-primary' : 'btn-ghost'} end-turn-btn`}
-              onClick={handleEndTurn}
-              disabled={!isYourTurn}
-              style={{ width: '100%' }}
-            >
-              {isYourTurn ? 'End Turn →' : 'Waiting...'}
-            </button>
-          </div>
         </aside>
+      </div>
+
+      {/* ── Mobile Status Bar (Hidden on desktop) ── */}
+      <div className="mobile-only-mana-bar">
+        <div className="mobile-mana-item mobile-mana-host">
+          <span className="mobile-mana-dot" />
+          <span className="font-mono">{hostPanel.mana}/{maxMana}</span>
+        </div>
+        <div className="mobile-mana-item mobile-mana-guest">
+          <span className="mobile-mana-dot" />
+          <span className="font-mono">{guestPanel.mana}/{maxMana}</span>
+        </div>
       </div>
 
       {/* ── Your Hand (bottom center) ── */}
@@ -454,6 +460,25 @@ export default function GamePage() {
           isYourTurn={isYourTurn}
         />
       </footer>
+
+      {/* ── Global Controls (fixed/bottom on mobile) ── */}
+      <div className="gamepage-controls">
+        {moveError && (
+          <MoveErrorToast 
+            message={moveError.message} 
+            onClose={() => setMoveError(null)} 
+          />
+        )}
+        
+        <button
+          id="btn-end-turn"
+          className={`btn ${isYourTurn ? 'btn-primary' : 'btn-ghost'} end-turn-btn`}
+          onClick={handleEndTurn}
+          disabled={!isYourTurn}
+        >
+          {isYourTurn ? 'End Turn →' : 'Waiting...'}
+        </button>
+      </div>
 
       {/* ── Overlays ── */}
       {showRules && <RulesPanel onClose={() => setShowRules(false)} />}

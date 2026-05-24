@@ -235,8 +235,13 @@
 }
 
 @media (max-width: 480px) {
-  .ti-turn-num {
+  .ti-turn-num,
+  .ti-dot {
     display: none;
+  }
+
+  .turn-indicator {
+    padding: 0.25rem 0.6rem;
   }
 
   .ti-label {

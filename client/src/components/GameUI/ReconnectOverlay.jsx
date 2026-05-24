@@ -3,7 +3,7 @@
  *
  * Behaviour:
  *  - Immediately tries to reconnect the socket every ~3 seconds (up to 10 attempts)
- *  - On socket 'connect', emits 'reconnect_attempt' with stored credentials
+ *  - On socket 'connect', emits 'rejoin_game' with stored credentials
  *  - On success ('game_start' with isReconnection) the parent clears this overlay
  *  - On 'error_message' or exhausted retries, shows a hard-fail state with a Leave button
  */
@@ -63,7 +63,7 @@ export default function ReconnectOverlay({ onGiveUp }) {
           return
         }
 
-        socket.emit('reconnect_attempt', { username, roomCode })
+        socket.emit('rejoin_game', { username, roomCode })
       } catch {
         setPhase('failed')
         setErrorMsg('Could not read session data.')

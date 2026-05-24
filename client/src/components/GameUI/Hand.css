@@ -37,6 +37,13 @@
   justify-content: center;
 }
 
+@media (max-width: 480px) {
+  .hand-cards {
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 .hand-empty {
   font-size: 0.65rem;
   letter-spacing: 0.1em;

@@ -21,15 +21,15 @@
 
 @media (max-width: 480px) {
   :root {
-    --cell-size: 26px;
-    --label-size: 13px;
+    --cell-size: 34px;
+    --label-size: 15px;
   }
 }
 
 @media (max-width: 360px) {
   :root {
-    --cell-size: 22px;
-    --label-size: 11px;
+    --cell-size: 28px;
+    --label-size: 13px;
   }
 }
 

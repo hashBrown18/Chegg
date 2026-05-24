@@ -75,8 +75,8 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
     }
   });
 
-  // ─── RECONNECT ───
-  socket.on('reconnect_attempt', async ({ username, roomCode }) => {
+  // ─── REJOIN GAME ───
+  socket.on('rejoin_game', async ({ username, roomCode }) => {
     try {
       if (!username || !roomCode) {
         socket.emit('error_message', { message: 'Username and room code required' });
