@@ -70,6 +70,7 @@ export default function LandingPage() {
         </div>
 
         <p className="landing-online font-label">2 players per game · Online multiplayer</p>
+        <p className="landing-rules font-label">View complete rules during deck building phase</p>
       </main>
     </div>
   )

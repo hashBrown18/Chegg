@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const playerSchema = new mongoose.Schema({
   username: { type: String, default: '' },
   socketId: { type: String, default: '' },
+  playerId: { type: String, default: '' }, // stable client-side UUID for reconnection
   connected: { type: Boolean, default: false },
   deck: { type: [String], default: [] },
   hand: { type: [String], default: [] },

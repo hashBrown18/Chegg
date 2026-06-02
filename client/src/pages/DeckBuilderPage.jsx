@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import socket from '../socket.js'
 import BackgroundSVG from '../components/BackgroundSVG.jsx'
 import MinionPopup from '../components/DeckBuilder/MinionPopup.jsx'
+import RulesPanel from '../components/GameUI/RulesPanel.jsx'
 import './DeckBuilderPage.css'
 
 // All 11 minions in exact order from CLAUDE.md
@@ -114,6 +115,7 @@ export default function DeckBuilderPage() {
   const [popup, setPopup] = useState(null) // minion info popup
   const [waiting, setWaiting] = useState(false)
   const [error, setError] = useState('')
+  const [showRules, setShowRules] = useState(false)
 
   const MAX_DECK = 15
 
@@ -165,138 +167,150 @@ export default function DeckBuilderPage() {
   const countInChosen = (id) => chosen.filter(c => c === id).length
 
   return (
-    <div className="deckbuilder">
-      <BackgroundSVG />
+     <div className="deckbuilder">
+       <BackgroundSVG />
 
-      {/* Header */}
-      <header className="deckbuilder-header">
-        <div className="deckbuilder-header-left">
-          <span className="deckbuilder-logo font-display">CHEGG</span>
-          <div className="deckbuilder-phase">
-            <span className="font-label phase-label">Phase</span>
-            <span className="font-label phase-value">Tactical Deployment</span>
-          </div>
-        </div>
-        <div className="deckbuilder-header-right">
-          <span className="deck-counter font-mono">
-            <span className={chosen.length === MAX_DECK ? 'counter-full' : ''}>{chosen.length}</span>
-            <span className="counter-sep"> / </span>
-            <span>{MAX_DECK}</span>
-          </span>
-          <span className="counter-label font-label">Selected</span>
-        </div>
-      </header>
+       {/* Header */}
+       <header className="deckbuilder-header">
+         <div className="deckbuilder-header-left">
+           <span className="deckbuilder-logo font-display">CHEGG</span>
+           <div className="deckbuilder-phase">
+             <span className="font-label phase-label">Phase</span>
+             <span className="font-label phase-value">Tactical Deployment</span>
+           </div>
+         </div>
+         <div className="deckbuilder-header-right">
+           <button
+             className="rules-btn"
+             onClick={() => setShowRules(true)}
+             aria-label="Open rule book"
+           >
+             Rules
+           </button>
+           <span className="deck-counter font-mono">
+             <span className={chosen.length === MAX_DECK ? 'counter-full' : ''}>{chosen.length}</span>
+             <span className="counter-sep"> / </span>
+             <span>{MAX_DECK}</span>
+           </span>
+           <span className="counter-label font-label">Selected</span>
+         </div>
+       </header>
 
-      <main className="deckbuilder-main">
-        {/* Top Section — Available Eggs */}
-        <section className="minion-grid-section">
-          <div className="section-header">
-            <h2 className="section-title font-display">Available Eggs</h2>
-            <span className="section-hint font-label">{DECK_MINIONS.length} / {DECK_MINIONS.length} Unlocked</span>
-          </div>
+       <main className="deckbuilder-main">
+         {/* Top Section — Available Eggs */}
+         <section className="minion-grid-section">
+           <div className="section-header">
+             <h2 className="section-title font-display">Available Eggs</h2>
+             <span className="section-hint font-label">{DECK_MINIONS.length} / {DECK_MINIONS.length} Unlocked</span>
+           </div>
 
-          <div className="minion-grid">
-            {DECK_MINIONS.map((minion) => {
-              const count = countInChosen(minion.id)
-              return (
-                <div
-                  key={minion.id}
-                  className={`minion-card ${chosen.length >= MAX_DECK && count === 0 ? 'minion-card-disabled' : ''}`}
-                  onClick={() => addMinion(minion.id)}
-                  role="button"
-                  tabIndex={0}
-                  id={`minion-card-${minion.id}`}
-                  onKeyDown={e => e.key === 'Enter' && addMinion(minion.id)}
-                >
-                  {count > 0 && (
-                    <span className="minion-count-badge font-mono">×{count}</span>
-                  )}
-                  <button
-                    className="minion-info-btn"
-                    onClick={e => { e.stopPropagation(); setPopup(minion) }}
-                    title="View details"
-                    aria-label={`Info for ${minion.name}`}
-                    id={`info-btn-${minion.id}`}
-                  >
-                    i
-                  </button>
-                  <div className="minion-img-wrap">
-                    <img src={minion.image} alt={minion.name} className="minion-img" />
-                  </div>
-                  <div className="minion-card-info">
-                    <span className="minion-name font-label">{minion.name}</span>
-                    <span className="minion-cost font-mono">{minion.cost} Mana</span>
-                  </div>
-                  <div className="minion-mana-bar">
-                    <div
-                      className="minion-mana-fill"
-                      style={{ width: `${(minion.cost / 6) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
+           <div className="minion-grid">
+             {DECK_MINIONS.map((minion) => {
+               const count = countInChosen(minion.id)
+               return (
+                 <div
+                   key={minion.id}
+                   className={`minion-card ${chosen.length >= MAX_DECK && count === 0 ? 'minion-card-disabled' : ''}`}
+                   onClick={() => addMinion(minion.id)}
+                   role="button"
+                   tabIndex={0}
+                   id={`minion-card-${minion.id}`}
+                   onKeyDown={e => e.key === 'Enter' && addMinion(minion.id)}
+                 >
+                   {count > 0 && (
+                     <span className="minion-count-badge font-mono">×{count}</span>
+                   )}
+                   <button
+                     className="minion-info-btn"
+                     onClick={e => { e.stopPropagation(); setPopup(minion) }}
+                     title="View details"
+                     aria-label={`Info for ${minion.name}`}
+                     id={`info-btn-${minion.id}`}
+                   >
+                     i
+                   </button>
+                   <div className="minion-img-wrap">
+                     <img src={minion.image} alt={minion.name} className="minion-img" />
+                   </div>
+                   <div className="minion-card-info">
+                     <span className="minion-name font-label">{minion.name}</span>
+                     <span className="minion-cost font-mono">{minion.cost} Mana</span>
+                   </div>
+                   <div className="minion-mana-bar">
+                     <div
+                       className="minion-mana-fill"
+                       style={{ width: `${(minion.cost / 6) * 100}%` }}
+                     />
+                   </div>
+                 </div>
+               )
+             })}
+           </div>
+         </section>
 
-        {/* Bottom Section — Chosen Deck */}
-        <section className="chosen-section">
-          <div className="chosen-header">
-            <div>
-              <h2 className="section-title font-display">Chosen Deck</h2>
-              <p className="chosen-subtitle font-body">Active combat units</p>
-            </div>
-            <div className="chosen-actions">
-              {error && <p className="error-msg">{error}</p>}
-              {waiting ? (
-                <div className="waiting-state">
-                  <span className="spinner-small" />
-                  <span className="font-label waiting-text">Waiting for opponent...</span>
-                </div>
-              ) : (
-                <button
-                  id="btn-confirm-deck"
-                  className={`btn btn-primary confirm-btn ${chosen.length === MAX_DECK ? 'confirm-btn-ready' : ''}`}
-                  onClick={confirmDeck}
-                  disabled={chosen.length !== MAX_DECK}
-                >
-                  {chosen.length === MAX_DECK ? '⚡ Confirm Deck' : `Select ${MAX_DECK - chosen.length} more`}
-                </button>
-              )}
-            </div>
-          </div>
+         {/* Bottom Section — Chosen Deck */}
+         <section className="chosen-section">
+           <div className="chosen-header">
+             <div>
+               <h2 className="section-title font-display">Chosen Deck</h2>
+               <p className="chosen-subtitle font-body">Active combat units</p>
+             </div>
+             <div className="chosen-actions">
+               {error && <p className="error-msg">{error}</p>}
+               {waiting ? (
+                 <div className="waiting-state">
+                   <span className="spinner-small" />
+                   <span className="font-label waiting-text">Waiting for opponent...</span>
+                 </div>
+               ) : (
+                 <button
+                   id="btn-confirm-deck"
+                   className={`btn btn-primary confirm-btn ${chosen.length === MAX_DECK ? 'confirm-btn-ready' : ''}`}
+                   onClick={confirmDeck}
+                   disabled={chosen.length !== MAX_DECK}
+                 >
+                   {chosen.length === MAX_DECK ? '⚡ Confirm Deck' : `Select ${MAX_DECK - chosen.length} more`}
+                 </button>
+               )}
+             </div>
+           </div>
 
-          <div className="chosen-cards">
-            {chosen.length === 0 && (
-              <p className="chosen-empty font-label">Click eggs above to add them to your deck</p>
-            )}
-            {chosen.map((minionId, index) => {
-              const m = getMinionById(minionId)
-              return (
-                <div
-                  key={`${minionId}-${index}`}
-                  className="chosen-card"
-                  onClick={() => removeMinion(index)}
-                  role="button"
-                  tabIndex={0}
-                  title="Click to remove"
-                  id={`chosen-${index}`}
-                  onKeyDown={e => e.key === 'Enter' && removeMinion(index)}
-                >
-                  <img src={m.image} alt={m.name} className="chosen-img" />
-                  <span className="chosen-name font-label">{m.name}</span>
-                  <span className="chosen-cost font-mono">{m.cost}</span>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      </main>
+           <div className="chosen-cards">
+             {chosen.length === 0 && (
+               <p className="chosen-empty font-label">Click eggs above to add them to your deck</p>
+               )}
+             {chosen.map((minionId, index) => {
+               const m = getMinionById(minionId)
+               return (
+                 <div
+                   key={`${minionId}-${index}`}
+                   className="chosen-card"
+                   onClick={() => removeMinion(index)}
+                   role="button"
+                   tabIndex={0}
+                   title="Click to remove"
+                   id={`chosen-${index}`}
+                   onKeyDown={e => e.key === 'Enter' && removeMinion(index)}
+                 >
+                   <img src={m.image} alt={m.name} className="chosen-img" />
+                   <span className="chosen-name font-label">{m.name}</span>
+                   <span className="chosen-cost font-mono">{m.cost}</span>
+                 </div>
+               )
+             })}
+           </div>
+         </section>
+       </main>
 
-      {/* Minion Info Popup Modal */}
-      {popup && (
-        <MinionPopup minion={popup} onClose={() => setPopup(null)} />
-      )}
-    </div>
+       {/* Minion Info Popup Modal */}
+       {popup && (
+         <MinionPopup minion={popup} onClose={() => setPopup(null)} />
+       )}
+
+       {/* Rules Panel Modal */}
+       {showRules && (
+         <RulesPanel onClose={() => setShowRules(false)} />
+       )}
+     </div>
   )
 }

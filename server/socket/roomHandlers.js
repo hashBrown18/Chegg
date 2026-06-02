@@ -2,6 +2,7 @@
  * roomHandlers.js — Socket handlers for room creation, joining, and deck confirmation
  */
 
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Room = require('../models/Room');
 const GameState = require('../game/GameState');
@@ -18,7 +19,8 @@ async function findRoom(roomCode) {
   if (isMongoConnected()) {
     return await Room.findOne({ roomCode });
   }
-  return inMemoryRooms.get(roomCode) || null;
+  // For in-memory fallback, ensure lowercase lookup for consistency
+  return inMemoryRooms.get(roomCode.toLowerCase()) || null;
 }
 
 // Abstraction layer: save/create a room to either MongoDB or memory
@@ -33,32 +35,37 @@ async function saveRoom(room) {
 }
 
 /**
- * Generate a random 6-character alphanumeric room code
+ * Generate a random 8-character lowercase alphanumeric room code
+ * (e.g. "jhgf7345") using crypto.randomBytes for cryptographic safety.
+ * Output is URL-safe lowercase a-z0-9 only.
  */
 function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1 to avoid confusion
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
+  // 6 random bytes → base36 → take 8 chars. base36 alphabet is [0-9a-z], so the
+  // result is always lowercase alphanumeric and URL-safe.
+  return crypto.randomBytes(6).toString('hex').slice(0, 8);
 }
 
 function registerRoomHandlers(io, socket, activeGames) {
   // ─── CREATE ROOM ───
-  socket.on('create_room', async ({ username }) => {
+  socket.on('create_room', async ({ username, playerId }) => {
     try {
       if (!username || username.trim().length === 0) {
         socket.emit('error_message', { message: 'Username is required' });
         return;
       }
 
-      // Generate unique room code
+      // Generate unique room code (8-char lowercase alphanumeric, crypto-based)
       let roomCode;
       let exists = true;
-      while (exists) {
+      let attempts = 0;
+      while (exists && attempts < 10) {
         roomCode = generateRoomCode();
         exists = await findRoom(roomCode);
+        attempts++;
+      }
+      if (exists) {
+        socket.emit('error_message', { message: 'Failed to generate a unique room code, please try again' });
+        return;
       }
 
       // Create room object
@@ -69,6 +76,7 @@ function registerRoomHandlers(io, socket, activeGames) {
           host: {
             username: username.trim(),
             socketId: socket.id,
+            playerId: (playerId || '').trim(),
             connected: true,
           },
           gameState: {
@@ -82,6 +90,7 @@ function registerRoomHandlers(io, socket, activeGames) {
           host: {
             username: username.trim(),
             socketId: socket.id,
+            playerId: (playerId || '').trim(),
             connected: true,
             deck: null,
           },
@@ -100,6 +109,7 @@ function registerRoomHandlers(io, socket, activeGames) {
       socket.roomCode = roomCode;
       socket.playerRole = 'host';
       socket.username = username.trim();
+      socket.playerId = (playerId || '').trim();
 
       socket.emit('room_created', { roomCode });
       console.log(`Room ${roomCode} created by ${username} (${isMongoConnected() ? 'MongoDB' : 'in-memory'})`);
@@ -110,7 +120,7 @@ function registerRoomHandlers(io, socket, activeGames) {
   });
 
   // ─── JOIN ROOM ───
-  socket.on('join_room', async ({ username, roomCode }) => {
+  socket.on('join_room', async ({ username, roomCode, playerId }) => {
     try {
       if (!username || username.trim().length === 0) {
         socket.emit('error_message', { message: 'Username is required' });
@@ -121,7 +131,9 @@ function registerRoomHandlers(io, socket, activeGames) {
         return;
       }
 
-      const code = roomCode.trim().toUpperCase();
+      // New format is lowercase alphanumeric, so we lowercase for normalization.
+      // (Preserves compatibility with old uppercase codes by lowering them too.)
+      const code = roomCode.trim().toLowerCase();
       const room = await findRoom(code);
 
       if (!room) {
@@ -143,6 +155,7 @@ function registerRoomHandlers(io, socket, activeGames) {
       room.guest = {
         username: username.trim(),
         socketId: socket.id,
+        playerId: (playerId || '').trim(),
         connected: true,
         deck: null,
       };
@@ -156,6 +169,7 @@ function registerRoomHandlers(io, socket, activeGames) {
       socket.roomCode = code;
       socket.playerRole = 'guest';
       socket.username = username.trim();
+      socket.playerId = (playerId || '').trim();
 
       // Notify host that opponent joined
       socket.to(code).emit('opponent_joined', {

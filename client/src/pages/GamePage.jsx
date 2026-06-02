@@ -10,8 +10,9 @@
  * Background: pure black #000000 (no purple, no pattern per spec)
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import socket from '../socket.js'
+import { getOrCreatePlayerId } from '../playerId.js'
 
 import Board from '../components/Board/Board.jsx'
 import PlayerPanel from '../components/GameUI/PlayerPanel.jsx'
@@ -26,6 +27,15 @@ import './GamePage.css'
 
 export default function GamePage() {
   const navigate = useNavigate()
+  const { roomId } = useParams()
+  const playerId = localStorage.getItem('chegg_playerId') || getOrCreatePlayerId()
+  const [roomNotFound, setRoomNotFound] = useState(false)
+
+  useEffect(() => {
+    if (!localStorage.getItem('chegg_playerId')) {
+      localStorage.setItem('chegg_playerId', playerId)
+    }
+  }, [playerId])
 
   // ── Game State ──
   const [gameData, setGameData] = useState(null) // initial data from game_start event
@@ -60,14 +70,12 @@ export default function GamePage() {
   // Track opponent mana changes through turn_change
   const opponentManaRef = useRef(0)
 
-  // ── Mount: register socket events ──
+   // ── Mount: register socket events ──
   useEffect(() => {
-    if (!socket.connected) socket.connect()
+    if (!socket.connected) socket.connect({ query: { roomId, playerId } })
 
     // Restore from sessionStorage (set by DeckBuilderPage when game_start comes in)
     const stored = sessionStorage.getItem('chegg_game_data')
-    const roomCode = sessionStorage.getItem('chegg_room_code')
-    const username = sessionStorage.getItem('chegg_username')
 
     if (stored) {
       try {
@@ -76,10 +84,10 @@ export default function GamePage() {
       } catch {}
     }
 
-    if (roomCode && username) {
+    if (roomId && playerId) {
       // Re-join the room on the server side to ensure latest state and socket association
-      console.log(`[CHEGG] Rejoining room ${roomCode} as ${username}`)
-      socket.emit('rejoin_game', { roomCode, username })
+      console.log(`[CHEGG] Rejoining room ${roomId} with playerId ${playerId}`)
+      socket.emit('rejoin_game', { roomId, playerId })
     }
 
     // ── Game events ──
@@ -365,13 +373,23 @@ export default function GamePage() {
     side: 'right',
   }
 
-  if (!gameData && !sessionStorage.getItem('chegg_game_data')) {
-    return (
-      <div className="gamepage-loading">
-        <span className="font-label">Connecting to game...</span>
-      </div>
-    )
-  }
+   if (!gameData && !sessionStorage.getItem('chegg_game_data')) {
+     return (
+       <div className="gamepage-loading">
+         <span className="font-label">Connecting to game...</span>
+       </div>
+     )
+   }
+
+   if (roomNotFound) {
+     return (
+       <div className="gamepage-error">
+         <h2>Room not found or expired</h2>
+         <p>The room you are looking for does not exist or has been deleted.</p>
+         <button onClick={() => navigate('/')}>Return to Home</button>
+       </div>
+     )
+   }
 
   return (
     <div className="gamepage" data-turn={currentTurn} data-is-your-turn={isYourTurn}>

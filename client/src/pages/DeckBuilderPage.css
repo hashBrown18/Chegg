@@ -1,11 +1,32 @@
 /* Deck Builder Page Styles */
 
 .deckbuilder {
-  min-height: 100vh;
-  background: var(--deep-purple);
-  display: flex;
-  flex-direction: column;
-  position: relative;
+   min-height: 100vh;
+   background: var(--deep-purple);
+   display: flex;
+   flex-direction: column;
+   position: relative;
+}
+
+/* Rules Button */
+.rules-btn {
+   background: rgba(131, 140, 229, 0.2);
+   border: 1px solid rgba(131, 140, 229, 0.4);
+   color: var(--periwinkle);
+   width: 28px;
+   height: 28px;
+   border-radius: 50%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   font-size: 0.75rem;
+   font-weight: 600;
+   cursor: pointer;
+   transition: background 0.15s ease;
+}
+
+.rules-btn:hover {
+   background: rgba(131, 140, 229, 0.4);
 }
 
 /* Header */

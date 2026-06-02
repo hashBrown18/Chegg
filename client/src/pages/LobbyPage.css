@@ -195,6 +195,29 @@
   font-size: 0.72rem;
 }
 
+/* ── Share link row (under the code) ── */
+.share-label {
+  margin-top: 0.5rem;
+}
+
+.share-row {
+  margin-bottom: 0.5rem;
+}
+
+.share-link {
+  font-size: 0.7rem;
+  color: var(--on-surface);
+  background: rgba(80, 32, 122, 0.45);
+  border: 1px solid rgba(131, 140, 229, 0.35);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+}
+
 .spinner {
   display: inline-block;
   width: 16px;

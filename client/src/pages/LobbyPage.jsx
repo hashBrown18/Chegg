@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import socket from '../socket.js'
+import { getOrCreatePlayerId } from '../playerId.js'
 import BackgroundSVG from '../components/BackgroundSVG.jsx'
 import './LobbyPage.css'
 
@@ -12,12 +13,25 @@ export default function LobbyPage({ mode }) {
   const navigate = useNavigate()
   const isCreate = mode === 'create'
 
-  const [username, setUsername] = useState('')
-  const [roomCode, setRoomCode] = useState('')
+  const [username, setUsername] = useState(() => {
+    try { return localStorage.getItem('chegg_username') || '' } catch { return '' }
+  })
+  const [roomCode, setRoomCode] = useState(() => {
+    // Prefill from a /join/:roomId redirect, if present
+    try {
+      const pre = sessionStorage.getItem('chegg_prefill_room_code')
+      if (pre) {
+        sessionStorage.removeItem('chegg_prefill_room_code')
+        return pre.toLowerCase()
+      }
+    } catch {}
+    return ''
+  })
   const [error, setError] = useState('')
   const [status, setStatus] = useState('') // waiting message
   const [generatedCode, setGeneratedCode] = useState('') // after room is created
-  const [copied, setCopied] = useState(false)
+  const [copiedCode, setCopiedCode] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
   const [loading, setLoading] = useState(false)
   const [connected, setConnected] = useState(socket.connected)
 
@@ -57,9 +71,11 @@ export default function LobbyPage({ mode }) {
 
     // ── CREATE ROOM listeners ──
     socket.on('room_created', ({ roomCode: code }) => {
-      sessionStorage.setItem('chegg_room_code', code)  // persist for reconnection
-      sessionStorage.setItem('chegg_username', username.trim())
-      setGeneratedCode(code)
+      const finalCode = (code || '').toLowerCase()
+      localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
+      localStorage.setItem('chegg_username', username.trim())
+      localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
+      setGeneratedCode(finalCode)
       setStatus('Waiting for opponent...')
       setLoading(false)
     })
@@ -72,9 +88,11 @@ export default function LobbyPage({ mode }) {
 
     // ── JOIN ROOM listeners ──
     socket.on('room_joined', ({ roomCode: code, opponentUsername }) => {
-      sessionStorage.setItem('chegg_room_code', code)  // persist for reconnection
-      sessionStorage.setItem('chegg_username', username.trim())
-      setStatus(`Joining room ${code}... Heading to deck builder!`)
+      const finalCode = (code || '').toLowerCase()
+      localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
+      localStorage.setItem('chegg_username', username.trim())
+      localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
+      setStatus(`Joining room ${finalCode}... Heading to deck builder!`)
       setTimeout(() => navigate('/deck'), 600)
     })
 
@@ -99,7 +117,7 @@ export default function LobbyPage({ mode }) {
       socket.off('room_joined')
       socket.off('error_message')
     }
-  }, [navigate])
+  }, [navigate, username])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -120,20 +138,41 @@ export default function LobbyPage({ mode }) {
     }
     setLoading(true)
 
+    const playerId = getOrCreatePlayerId()
+
     if (isCreate) {
-      socket.emit('create_room', { username: username.trim() })
+      socket.emit('create_room', { username: username.trim(), playerId })
     } else {
       socket.emit('join_room', {
         username: username.trim(),
-        roomCode: roomCode.trim().toUpperCase(),
+        roomCode: roomCode.trim().toLowerCase(),
+        playerId,
       })
     }
   }
 
   const copyCode = () => {
     navigator.clipboard.writeText(generatedCode).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setCopiedCode(true)
+      setTimeout(() => setCopiedCode(false), 2000)
+    })
+  }
+
+  const buildShareLink = (code) => {
+    if (!code) return ''
+    // Use window.location.origin if available, fall back to env var or hardcoded
+    // production host. This makes the link work in dev and on the deployed site.
+    const origin =
+      (typeof window !== 'undefined' && window.location && window.location.origin) ||
+      'https://chegg-game.vercel.app'
+    return `${origin}/game/${code.toLowerCase()}`
+  }
+
+  const copyLink = () => {
+    const link = buildShareLink(generatedCode)
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2000)
     })
   }
 
@@ -174,9 +213,22 @@ export default function LobbyPage({ mode }) {
                   className="btn btn-ghost code-copy-btn"
                   onClick={copyCode}
                 >
-                  {copied ? '✓ Copied' : 'Copy'}
+                  {copiedCode ? '✓ Copied' : 'Copy Code'}
                 </button>
               </div>
+
+              <p className="font-label code-label share-label">Share this link</p>
+              <div className="code-row share-row">
+                <span className="share-link font-mono">{buildShareLink(generatedCode)}</span>
+                <button
+                  id="btn-copy-link"
+                  className="btn btn-ghost code-copy-btn"
+                  onClick={copyLink}
+                >
+                  {copiedLink ? '✓ Copied' : 'Copy Link'}
+                </button>
+              </div>
+
               {status && <p className="status-msg lobby-waiting">{status}</p>}
             </div>
           ) : (
@@ -191,10 +243,10 @@ export default function LobbyPage({ mode }) {
                       id="input-room-code"
                       type="text"
                       className="input-field"
-                      placeholder="Enter 6-character code"
+                      placeholder="Enter 8-character code"
                       value={roomCode}
-                      onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                      maxLength={6}
+                      onChange={(e) => setRoomCode(e.target.value.toLowerCase())}
+                      maxLength={8}
                       autoComplete="off"
                       autoFocus
                     />
