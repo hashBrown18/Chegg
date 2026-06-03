@@ -131,7 +131,14 @@ export default function DeckBuilderPage() {
       sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
       const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
       if (username) sessionStorage.setItem('chegg_username', username)
-      navigate('/game')
+      // Navigate to token-based game URL for persistent reconnection
+      const roomCode = localStorage.getItem('chegg_room_code') || ''
+      const playerToken = sessionStorage.getItem('chegg_player_token') || ''
+      if (roomCode && playerToken) {
+        navigate(`/game/${roomCode}/${playerToken}`)
+      } else {
+        navigate('/game')
+      }
     })
 
     socket.on('error_message', ({ message }) => {

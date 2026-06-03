@@ -45,6 +45,14 @@ function generateRoomCode() {
   return crypto.randomBytes(6).toString('hex').slice(0, 8);
 }
 
+/**
+ * Generate a random 16-character hex token for player identification in URLs.
+ * Used for persistent reconnection — each player gets their own token baked into the URL.
+ */
+function generatePlayerToken() {
+  return crypto.randomBytes(8).toString('hex');
+}
+
 function registerRoomHandlers(io, socket, activeGames) {
   // ─── CREATE ROOM ───
   socket.on('create_room', async ({ username, playerId }) => {
@@ -68,11 +76,17 @@ function registerRoomHandlers(io, socket, activeGames) {
         return;
       }
 
+      // Generate persistent player tokens for URL-based reconnection
+      const hostToken = generatePlayerToken();
+      const guestToken = generatePlayerToken();
+
       // Create room object
       let room;
       if (isMongoConnected()) {
         room = new Room({
           roomCode,
+          hostToken,
+          guestToken,
           host: {
             username: username.trim(),
             socketId: socket.id,
@@ -87,6 +101,8 @@ function registerRoomHandlers(io, socket, activeGames) {
         // In-memory plain object fallback
         room = {
           roomCode,
+          hostToken,
+          guestToken,
           host: {
             username: username.trim(),
             socketId: socket.id,
@@ -111,7 +127,7 @@ function registerRoomHandlers(io, socket, activeGames) {
       socket.username = username.trim();
       socket.playerId = (playerId || '').trim();
 
-      socket.emit('room_created', { roomCode });
+      socket.emit('room_created', { roomCode, hostToken, guestToken });
       console.log(`Room ${roomCode} created by ${username} (${isMongoConnected() ? 'MongoDB' : 'in-memory'})`);
     } catch (err) {
       console.error('create_room error:', err);
@@ -176,10 +192,11 @@ function registerRoomHandlers(io, socket, activeGames) {
         opponentUsername: username.trim(),
       });
 
-      // Notify guest of success
+      // Notify guest of success — include their persistent token
       socket.emit('room_joined', {
         roomCode: code,
         opponentUsername: room.host.username,
+        guestToken: room.guestToken,
       });
 
       console.log(`${username} joined room ${code}`);

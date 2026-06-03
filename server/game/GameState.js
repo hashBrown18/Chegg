@@ -339,6 +339,27 @@ class GameState {
   }
 
   /**
+   * Get full state scoped to a specific player for reconnection payloads.
+   * Returns everything needed for the game_start event with isReconnection: true.
+   * The boardState is the complete board visible to both players.
+   */
+  getFullStateForPlayer(playerRole) {
+    const opponentRole = playerRole === 'host' ? 'guest' : 'host';
+    return {
+      boardState: this.getBoardState(),
+      currentTurn: this.currentTurn,
+      turnNumber: this.turnNumber,
+      mana: this.getMana(playerRole),
+      maxMana: Math.min(this.turnNumber, 6),
+      yourHand: this.getPlayerHand(playerRole),
+      opponentCardCount: this.getPlayerHandCount(opponentRole),
+      yourDeckCount: this.getPlayerDeckCount(playerRole),
+      opponentDeckCount: this.getPlayerDeckCount(opponentRole),
+      yourRole: playerRole,
+    };
+  }
+
+  /**
    * Shuffle array in-place (Fisher-Yates)
    */
   shuffleArray(arr) {

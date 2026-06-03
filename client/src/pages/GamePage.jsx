@@ -27,7 +27,7 @@ import './GamePage.css'
 
 export default function GamePage() {
   const navigate = useNavigate()
-  const { roomId } = useParams()
+  const { roomId, playerToken } = useParams()
   const playerId = localStorage.getItem('chegg_player_id') || getOrCreatePlayerId()
   const [roomNotFound, setRoomNotFound] = useState(false)
 
@@ -76,44 +76,53 @@ export default function GamePage() {
   const currentTurnRef = useRef('host')
 
    // ── Guard: if someone opens /game/:roomId with no session, redirect to join flow ──
+  // Tokens handle identity now — only redirect if there's truly no room context.
   useEffect(() => {
-    if (roomId && !sessionStorage.getItem('chegg_game_data')) {
-      // No session data — this is a fresh visit via share link.
+    if (roomId && !playerToken && !sessionStorage.getItem('chegg_game_data')) {
+      // No token and no session — this is a fresh visit via old-format link.
       // Redirect to /join/:roomId so they can enter username and join properly.
       navigate(`/join/${roomId}`, { replace: true })
     }
-  }, [roomId, navigate])
+  }, [roomId, playerToken, navigate])
 
   // ── Mount: register socket events ──
   useEffect(() => {
     if (!socket.connected) socket.connect({ query: { roomId, playerId } })
 
-    // Restore from sessionStorage (set by DeckBuilderPage when game_start comes in)
+    // Restore from sessionStorage ONLY as initial placeholder while waiting for server.
+    // The server's game_start (or reconnection game_start) is the source of truth.
     const stored = sessionStorage.getItem('chegg_game_data')
 
-    if (stored) {
+    if (stored && !playerToken) {
       try {
         const data = JSON.parse(stored)
         applyGameStart(data)
       } catch {}
     }
 
-    if (roomId && playerId) {
-      // Re-join the room on the server side to ensure latest state and socket association
+    if (roomId) {
+      // Re-join the room on the server side to ensure latest state and socket association.
+      // Primary identity: playerToken (URL-based). Fallback: playerId + username.
       const username = sessionStorage.getItem('chegg_username') || ''
-      console.log(`[CHEGG] Rejoining room ${roomId} with playerId ${playerId}`)
-      socket.emit('rejoin_game', { roomCode: roomId, playerId, username })
+      const token = playerToken || sessionStorage.getItem('chegg_player_token') || ''
+      console.log(`[CHEGG] Rejoining room ${roomId} with token ${token ? token.slice(0, 8) + '...' : 'none'}`)
+      socket.emit('rejoin_game', { roomCode: roomId, playerToken: token, playerId, username })
     }
 
     // ── Game events ──
     socket.on('game_start', (data) => {
-      sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
-      const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
-      if (username) sessionStorage.setItem('chegg_username', username)
+      // Server is the single source of truth. Always apply server state.
       applyGameStart(data)
-      // If this was a reconnection the overlay can be dismissed
+
       if (data.isReconnection) {
+        // Reconnection: server sent full state. Clear stale sessionStorage.
+        sessionStorage.removeItem('chegg_game_data')
         setShowReconnectOverlay(false)
+      } else {
+        // Fresh game start: save to sessionStorage as backup only.
+        sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
+        const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
+        if (username) sessionStorage.setItem('chegg_username', username)
       }
     })
 
@@ -350,6 +359,9 @@ export default function GamePage() {
     sessionStorage.removeItem('chegg_game_data')
     localStorage.removeItem('chegg_room_code')
     sessionStorage.removeItem('chegg_username')
+    sessionStorage.removeItem('chegg_player_token')
+    sessionStorage.removeItem('chegg_host_token')
+    sessionStorage.removeItem('chegg_guest_token')
     navigate('/deck')
   }
 
@@ -357,6 +369,9 @@ export default function GamePage() {
     sessionStorage.removeItem('chegg_game_data')
     localStorage.removeItem('chegg_room_code')
     sessionStorage.removeItem('chegg_username')
+    sessionStorage.removeItem('chegg_player_token')
+    sessionStorage.removeItem('chegg_host_token')
+    sessionStorage.removeItem('chegg_guest_token')
     socket.disconnect()
     navigate('/')
   }

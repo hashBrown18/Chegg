@@ -20,6 +20,7 @@ function App() {
             when present, otherwise from sessionStorage. */}
         <Route path="/game" element={<GamePage />} />
         <Route path="/game/:roomId" element={<GamePage />} />
+        <Route path="/game/:roomId/:playerToken" element={<GamePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -70,11 +70,15 @@ export default function LobbyPage({ mode }) {
     socket.on('disconnect', onDisconnect)
 
     // ── CREATE ROOM listeners ──
-    socket.on('room_created', ({ roomCode: code }) => {
-      const finalCode = (code || '').toLowerCase()
+    socket.on('room_created', ({ roomCode, hostToken, guestToken }) => {
+      const finalCode = (roomCode || '').toLowerCase()
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
       localStorage.setItem('chegg_username', username.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
+      // Store tokens for URL-based reconnection
+      sessionStorage.setItem('chegg_player_token', hostToken)
+      sessionStorage.setItem('chegg_host_token', hostToken)
+      sessionStorage.setItem('chegg_guest_token', guestToken)
       setGeneratedCode(finalCode)
       setStatus('Waiting for opponent...')
       setLoading(false)
@@ -87,11 +91,15 @@ export default function LobbyPage({ mode }) {
     })
 
     // ── JOIN ROOM listeners ──
-    socket.on('room_joined', ({ roomCode: code, opponentUsername }) => {
-      const finalCode = (code || '').toLowerCase()
+    socket.on('room_joined', ({ roomCode, opponentUsername, guestToken }) => {
+      const finalCode = (roomCode || '').toLowerCase()
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
       localStorage.setItem('chegg_username', username.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
+      // Store token for URL-based reconnection
+      if (guestToken) {
+        sessionStorage.setItem('chegg_player_token', guestToken)
+      }
       setStatus(`Joining room ${finalCode}... Heading to deck builder!`)
       setTimeout(() => navigate('/deck'), 600)
     })
@@ -160,11 +168,15 @@ export default function LobbyPage({ mode }) {
 
   const buildShareLink = (code) => {
     if (!code) return ''
-    // Use window.location.origin if available, fall back to env var or hardcoded
-    // production host. This makes the link work in dev and on the deployed site.
     const origin =
       (typeof window !== 'undefined' && window.location && window.location.origin) ||
       'https://chegg-game.vercel.app'
+    // Guest share link uses the guest token for direct game reconnection
+    const guestToken = sessionStorage.getItem('chegg_guest_token') || ''
+    if (guestToken) {
+      return `${origin}/game/${code.toLowerCase()}/${guestToken}`
+    }
+    // Fallback to join link if token not yet available
     return `${origin}/join/${code.toLowerCase()}`
   }
 

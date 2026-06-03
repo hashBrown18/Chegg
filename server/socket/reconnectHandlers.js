@@ -98,10 +98,11 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
   });
 
   // ─── REJOIN GAME ───
-  // Accepts either { roomCode, playerId } (preferred) or { roomCode, username }
-  // (legacy fallback). The room is found by roomCode (lowercased). The player
-  // slot is matched first by playerId, then by username.
-  socket.on('rejoin_game', async ({ roomCode, playerId, username }) => {
+  // Accepts { roomCode, playerToken } (preferred — URL-based identity) or
+  // { roomCode, playerId } (legacy fallback) or { roomCode, username }.
+  // The room is found by roomCode (lowercased). The player slot is matched
+  // first by playerToken, then by playerId, then by username.
+  socket.on('rejoin_game', async ({ roomCode, playerToken, playerId, username }) => {
     try {
       if (!roomCode) {
         socket.emit('error_message', { message: 'Room code is required to rejoin' });
@@ -109,6 +110,7 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       }
 
       const code = roomCode.trim().toLowerCase();
+      const token = (playerToken || '').trim();
       const pid = (playerId || '').trim();
       const uname = (username || '').trim();
 
@@ -128,9 +130,16 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         return;
       }
 
-      // Match player slot. Prefer playerId, fall back to username.
+      // Match player slot. Primary: playerToken → fallback: playerId → fallback: username.
       let playerRole = null;
-      if (pid) {
+      if (token) {
+        if (room.hostToken === token) {
+          playerRole = 'host';
+        } else if (room.guestToken === token) {
+          playerRole = 'guest';
+        }
+      }
+      if (!playerRole && pid) {
         if (room.host && room.host.playerId === pid) {
           playerRole = 'host';
         } else if (room.guest && room.guest.playerId === pid) {
@@ -174,6 +183,7 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         socket.playerRole = playerRole;
         socket.username = uname || (playerRole === 'host' ? room.host.username : room.guest.username);
         socket.playerId = pid;
+        socket.playerToken = token;
 
         if (isMongoConnected()) {
           if (playerRole === 'host') {
@@ -214,6 +224,7 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       socket.playerRole = playerRole;
       socket.username = uname || (playerRole === 'host' ? room.host.username : room.guest.username);
       socket.playerId = pid;
+      socket.playerToken = token;
 
       // Update MongoDB
       if (isMongoConnected()) {

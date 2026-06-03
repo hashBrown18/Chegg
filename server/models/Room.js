@@ -39,6 +39,8 @@ const gameStateSchema = new mongoose.Schema({
 
 const roomSchema = new mongoose.Schema({
   roomCode: { type: String, required: true, unique: true, index: true },
+  hostToken: { type: String, default: '' },
+  guestToken: { type: String, default: '' },
   host: { type: playerSchema, default: () => ({}) },
   guest: { type: playerSchema, default: () => ({}) },
   gameState: { type: gameStateSchema, default: () => ({}) },
