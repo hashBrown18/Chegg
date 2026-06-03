@@ -13,17 +13,20 @@ const apiRoutes = require('./routes/api');
 const app = express();
 const server = http.createServer(app);
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+// COUNCIL FIX: BUG 6 — CORS origin allows both localhost and 127.0.0.1 in dev
+const CLIENT_URL = process.env.CLIENT_URL;
+const DEV_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const corsOrigin = CLIENT_URL || DEV_ORIGINS;
 
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
   },
 });
 
 // Middleware
-app.use(cors({ origin: CLIENT_URL }));
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 // API routes
@@ -42,10 +45,7 @@ io.on('connection', (socket) => {
   registerGameHandlers(io, socket, activeGames);
   registerReconnectHandlers(io, socket, activeGames, disconnectTimers);
 
-  socket.on('disconnect', () => {
-    console.log(`Socket disconnected: ${socket.id}`);
-    // Reconnect handler's onDisconnect is registered inside registerReconnectHandlers
-  });
+// COUNCIL FIX: BUG 2 — removed duplicate disconnect handler (reconnectHandlers.js owns it)
 });
 
 // Connect to MongoDB then start server

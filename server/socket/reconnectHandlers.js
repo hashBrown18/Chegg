@@ -161,8 +161,13 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       // Two rejoin paths:
       //   A) Game is in progress → restore full state via game_start
       //   B) Game is still in deckbuilding / waiting → just rejoin the lobby
+      // COUNCIL FIX: BUG 1 — null crash on server restart
       const gameState = activeGames.get(code);
-      const isPlaying = gameState && gameState.status === 'playing';
+      if (!gameState) {
+        socket.emit('game_error', { message: 'Game session expired. Please rejoin.' });
+        return;
+      }
+      const isPlaying = gameState.status === 'playing';
 
       if (!isPlaying) {
         // Pre-game rejoin: cancel the 60s abandon timer (if any), update

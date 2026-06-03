@@ -75,6 +75,23 @@ export default function GamePage() {
   const yourRoleRef = useRef(null)
   const currentTurnRef = useRef('host')
 
+  // COUNCIL FIX: BUG 3 — refs for all state read inside socket handlers to
+  // avoid stale closures from the empty-dep useEffect registration.
+  const selectedMinionRef = useRef(null)
+  const selectedHandIndexRef = useRef(null)
+  const yourHandRef = useRef([])
+  const highlightsRef = useRef(null)
+  const boardStateRef = useRef({})
+
+  // COUNCIL FIX: BUG 3 — sync refs with state so socket handlers never read stale closures
+  useEffect(() => {
+    selectedMinionRef.current = selectedMinion
+    selectedHandIndexRef.current = selectedHandIndex
+    yourHandRef.current = yourHand
+    highlightsRef.current = highlights
+    boardStateRef.current = boardState
+  }, [selectedMinion, selectedHandIndex, yourHand, highlights, boardState])
+
    // ── Guard: if someone opens /game/:roomId with no session, redirect to join flow ──
   // Tokens handle identity now — only redirect if there's truly no room context.
   useEffect(() => {
@@ -89,16 +106,8 @@ export default function GamePage() {
   useEffect(() => {
     if (!socket.connected) socket.connect({ query: { roomId, playerId } })
 
-    // Restore from sessionStorage ONLY as initial placeholder while waiting for server.
-    // The server's game_start (or reconnection game_start) is the source of truth.
-    const stored = sessionStorage.getItem('chegg_game_data')
-
-    if (stored && !playerToken) {
-      try {
-        const data = JSON.parse(stored)
-        applyGameStart(data)
-      } catch {}
-    }
+    // COUNCIL FIX: BUG 4 — removed sessionStorage as third source of truth for hand state.
+    // Hand data now comes only from server via game_start and your_hand events.
 
     if (roomId) {
       // Re-join the room on the server side to ensure latest state and socket association.
@@ -115,14 +124,8 @@ export default function GamePage() {
       applyGameStart(data)
 
       if (data.isReconnection) {
-        // Reconnection: server sent full state. Clear stale sessionStorage.
-        sessionStorage.removeItem('chegg_game_data')
+        // Reconnection: server sent full state.
         setShowReconnectOverlay(false)
-      } else {
-        // Fresh game start: save to sessionStorage as backup only.
-        sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
-        const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
-        if (username) sessionStorage.setItem('chegg_username', username)
       }
     })
 
@@ -404,7 +407,7 @@ export default function GamePage() {
     side: 'right',
   }
 
-   if (!gameData && !sessionStorage.getItem('chegg_game_data')) {
+   if (!gameData) {
      return (
        <div className="gamepage-loading">
          <span className="font-label">Connecting to game...</span>
