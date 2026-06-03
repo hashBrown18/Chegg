@@ -165,7 +165,7 @@ export default function LobbyPage({ mode }) {
     const origin =
       (typeof window !== 'undefined' && window.location && window.location.origin) ||
       'https://chegg-game.vercel.app'
-    return `${origin}/game/${code.toLowerCase()}`
+    return `${origin}/join/${code.toLowerCase()}`
   }
 
   const copyLink = () => {

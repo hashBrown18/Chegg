@@ -35,13 +35,6 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
           }
           await room.save();
         }
-      } else {
-        // In-memory fallback: look up via roomHandlers' helper.
-        // We can't import its private Map, so we search the local disconnectTimers'
-        // sibling state via activeGames (which is keyed by roomCode).
-        // Note: the in-memory fallback is dev-only and doesn't persist disconnect
-        // status, so we skip the bookkeeping there.
-        room = null;
       }
 
       // Notify opponent
@@ -251,6 +244,19 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         yourDeckCount: gameState.getPlayerDeckCount(playerRole),
         opponentDeckCount: gameState.getPlayerDeckCount(opponentRole),
         isReconnection: true,
+      });
+
+      // Also emit explicit turn_change so reconnecting player knows whose turn it is
+      // (in case the turn changed while they were disconnected)
+      socket.emit('turn_change', {
+        currentTurn: gameState.currentTurn,
+        turnNumber: gameState.turnNumber,
+      });
+
+      // Send mana update to reconnecting player
+      socket.emit('mana_update', {
+        yourMana: gameState.getMana(playerRole),
+        maxMana: Math.min(gameState.turnNumber, 6),
       });
 
       // Notify opponent

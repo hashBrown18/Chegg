@@ -70,7 +70,21 @@ export default function GamePage() {
   // Track opponent mana changes through turn_change
   const opponentManaRef = useRef(0)
 
-   // ── Mount: register socket events ──
+  // Refs for yourRole and currentTurn — used in socket callbacks so we don't
+  // need these as effect dependencies (which would re-register listeners).
+  const yourRoleRef = useRef(null)
+  const currentTurnRef = useRef('host')
+
+   // ── Guard: if someone opens /game/:roomId with no session, redirect to join flow ──
+  useEffect(() => {
+    if (roomId && !sessionStorage.getItem('chegg_game_data')) {
+      // No session data — this is a fresh visit via share link.
+      // Redirect to /join/:roomId so they can enter username and join properly.
+      navigate(`/join/${roomId}`, { replace: true })
+    }
+  }, [roomId, navigate])
+
+  // ── Mount: register socket events ──
   useEffect(() => {
     if (!socket.connected) socket.connect({ query: { roomId, playerId } })
 
@@ -86,8 +100,9 @@ export default function GamePage() {
 
     if (roomId && playerId) {
       // Re-join the room on the server side to ensure latest state and socket association
+      const username = sessionStorage.getItem('chegg_username') || ''
       console.log(`[CHEGG] Rejoining room ${roomId} with playerId ${playerId}`)
-      socket.emit('rejoin_game', { roomCode: roomId, playerId })
+      socket.emit('rejoin_game', { roomCode: roomId, playerId, username })
     }
 
     // ── Game events ──
@@ -127,6 +142,7 @@ export default function GamePage() {
 
     socket.on('turn_change', ({ currentTurn: ct, turnNumber: tn }) => {
       setCurrentTurn(ct)
+      currentTurnRef.current = ct
       setTurnNumber(tn)
       clearSelections()
     })
@@ -155,7 +171,7 @@ export default function GamePage() {
     })
 
     socket.on('abandon_win', () => {
-      setWinData({ winner: 'You', loser: 'Opponent', winnerRole: yourRole })
+      setWinData({ winner: 'You', loser: 'Opponent', winnerRole: yourRoleRef.current })
       setOpponentDisconnect(null)
     })
 
@@ -182,12 +198,13 @@ export default function GamePage() {
       socket.off('abandon_win')
       socket.off('disconnect')
     }
-  }, [yourRole])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyGameStart(data) {
     setGameData(data)
     setBoardState(data.boardState || {})
     setYourRole(data.yourRole)
+    yourRoleRef.current = data.yourRole
     setYourMana(data.mana ?? 0)
     setMaxMana(data.maxMana ?? 1)
     setYourHand(data.yourHand || [])
@@ -195,6 +212,7 @@ export default function GamePage() {
     setYourDeckCount(data.yourDeckCount ?? 0)
     setOpponentDeckCount(data.opponentDeckCount ?? 0)
     setCurrentTurn(data.currentTurn || 'host')
+    currentTurnRef.current = data.currentTurn || 'host'
     setTurnNumber(data.turnNumber ?? 1)
     setHostUsername(data.hostUsername || 'Host')
     setGuestUsername(data.guestUsername || 'Guest')
@@ -208,7 +226,7 @@ export default function GamePage() {
 
   // ── Hand card selection ──
   const handleCardSelect = useCallback((index) => {
-    if (currentTurn !== yourRole) return
+    if (currentTurnRef.current !== yourRoleRef.current) return
 
     if (selectedHandIndex === index) {
       // Deselect
@@ -219,9 +237,7 @@ export default function GamePage() {
     clearSelections()
     setSelectedHandIndex(index)
     // Show spawn highlights — valid spawn squares in own spawn zone
-    // The server highlights logic is request-based only for minions on board.
-    // For hand cards, the client shows the spawn zone (rows I,J for host; A,B for guest)
-    const spawnRows = yourRole === 'host' ? ['I', 'J'] : ['A', 'B']
+    const spawnRows = yourRoleRef.current === 'host' ? ['I', 'J'] : ['A', 'B']
     const movementSquares = []
     for (let col = 1; col <= 8; col++) {
       for (const row of spawnRows) {
@@ -232,11 +248,11 @@ export default function GamePage() {
       }
     }
     setHighlights({ movementSquares, attackSquares: [], abilitySquares: [] })
-  }, [currentTurn, yourRole, selectedHandIndex, boardState])
+  }, [selectedHandIndex, boardState])
 
   // ── Board cell click ──
   const handleCellClick = useCallback((col, row, occupant) => {
-    const isYourTurn = currentTurn === yourRole
+    const isYourTurn = currentTurnRef.current === yourRoleRef.current
 
     // If a hand card is selected and we click a green spawn square → spawn
     if (selectedHandIndex !== null && isYourTurn) {
@@ -290,7 +306,7 @@ export default function GamePage() {
       }
 
       // Click on another of your minions — select that instead
-      if (occupant && occupant.owner === yourRole && isYourTurn) {
+      if (occupant && occupant.owner === yourRoleRef.current && isYourTurn) {
         selectBoardMinion(occupant)
         return
       }
@@ -301,10 +317,10 @@ export default function GamePage() {
     }
 
     // No selection — click on your minion to select it
-    if (occupant && occupant.owner === yourRole && isYourTurn) {
+    if (occupant && occupant.owner === yourRoleRef.current && isYourTurn) {
       selectBoardMinion(occupant)
     }
-  }, [currentTurn, yourRole, selectedMinion, selectedHandIndex, highlights, yourHand, boardState])
+  }, [selectedMinion, selectedHandIndex, highlights, yourHand, boardState])
 
   function selectBoardMinion(minion) {
     clearSelections()
@@ -322,7 +338,7 @@ export default function GamePage() {
 
   // ── End Turn ──
   const handleEndTurn = () => {
-    if (currentTurn !== yourRole) return
+    if (currentTurnRef.current !== yourRoleRef.current) return
     clearSelections()
     socket.emit('end_turn', {})
   }
