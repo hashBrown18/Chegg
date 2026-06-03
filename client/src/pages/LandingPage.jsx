@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackgroundSVG from '../components/BackgroundSVG.jsx'
+import RulesPanel from '../components/GameUI/RulesPanel.jsx'
 import './LandingPage.css'
 
 const FEATURES = [
@@ -22,6 +24,7 @@ const FEATURES = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
+  const [showRules, setShowRules] = useState(false)
 
   return (
     <div className="landing">
@@ -70,8 +73,18 @@ export default function LandingPage() {
         </div>
 
         <p className="landing-online font-label">2 players per game · Online multiplayer</p>
-        <p className="landing-rules font-label">View complete rules during deck building phase</p>
+        <p className="landing-rules font-label">Rules are also available in deck building phase and the playground</p>
+
+        <button
+          id="btn-rules-landing"
+          className="btn btn-ghost landing-rules-btn"
+          onClick={() => setShowRules(true)}
+        >
+          📖 Rules
+        </button>
       </main>
+
+      {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
     </div>
   )
 }

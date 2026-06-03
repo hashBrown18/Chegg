@@ -55,15 +55,16 @@ export default function ReconnectOverlay({ onGiveUp }) {
         const { hostUsername, guestUsername, yourRole } = JSON.parse(raw)
         const username = yourRole === 'host' ? hostUsername : guestUsername
 
-        // roomCode is stored separately by DeckBuilderPage / LobbyPage
-        const roomCode = sessionStorage.getItem('chegg_room_code')
-        if (!username || !roomCode) {
+        // roomCode is stored in localStorage by LobbyPage
+        const roomCode = localStorage.getItem('chegg_room_code')
+        const playerId = localStorage.getItem('chegg_player_id')
+        if (!roomCode) {
           setPhase('failed')
           setErrorMsg('Session credentials missing.')
           return
         }
 
-        socket.emit('rejoin_game', { username, roomCode })
+        socket.emit('rejoin_game', { roomCode, playerId, username })
       } catch {
         setPhase('failed')
         setErrorMsg('Could not read session data.')

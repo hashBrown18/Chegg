@@ -28,12 +28,12 @@ import './GamePage.css'
 export default function GamePage() {
   const navigate = useNavigate()
   const { roomId } = useParams()
-  const playerId = localStorage.getItem('chegg_playerId') || getOrCreatePlayerId()
+  const playerId = localStorage.getItem('chegg_player_id') || getOrCreatePlayerId()
   const [roomNotFound, setRoomNotFound] = useState(false)
 
   useEffect(() => {
-    if (!localStorage.getItem('chegg_playerId')) {
-      localStorage.setItem('chegg_playerId', playerId)
+    if (!localStorage.getItem('chegg_player_id')) {
+      localStorage.setItem('chegg_player_id', playerId)
     }
   }, [playerId])
 
@@ -87,7 +87,7 @@ export default function GamePage() {
     if (roomId && playerId) {
       // Re-join the room on the server side to ensure latest state and socket association
       console.log(`[CHEGG] Rejoining room ${roomId} with playerId ${playerId}`)
-      socket.emit('rejoin_game', { roomId, playerId })
+      socket.emit('rejoin_game', { roomCode: roomId, playerId })
     }
 
     // ── Game events ──
@@ -332,14 +332,14 @@ export default function GamePage() {
     setWinData(null)
     clearSelections()
     sessionStorage.removeItem('chegg_game_data')
-    sessionStorage.removeItem('chegg_room_code')
+    localStorage.removeItem('chegg_room_code')
     sessionStorage.removeItem('chegg_username')
     navigate('/deck')
   }
 
   const handleLeave = () => {
     sessionStorage.removeItem('chegg_game_data')
-    sessionStorage.removeItem('chegg_room_code')
+    localStorage.removeItem('chegg_room_code')
     sessionStorage.removeItem('chegg_username')
     socket.disconnect()
     navigate('/')

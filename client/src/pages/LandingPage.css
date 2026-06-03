@@ -152,6 +152,24 @@
   animation: fadeInUp 0.5s var(--ease-out) 0.35s both;
 }
 
+.landing-rules-btn {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  color: var(--lavender);
+  border: 1px solid rgba(214, 185, 252, 0.25);
+  border-radius: 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  animation: fadeInUp 0.5s var(--ease-out) 0.4s both;
+}
+
+.landing-rules-btn:hover {
+  border-color: var(--lavender);
+  background: rgba(214, 185, 252, 0.08);
+}
+
 /* ── 768px — Tablet / large phone ── */
 @media (max-width: 768px) {
   .landing-header {
