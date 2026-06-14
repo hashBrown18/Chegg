@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ─── CHEGG Global Design System ───────────────────────────────────────── */
 
 /* Import fallback for Google Fonts (loaded in index.html) */
@@ -8,13 +10,35 @@
 }
 
 :root {
-  /* Brand Colors */
+  /* Brand Colors (Legacy) */
   --deep-purple:   #50207A;
   --lavender:      #D6B9FC;
   --periwinkle:    #838CE5;
   --pure-black:    #000000;
   --white:         #FFFFFF;
   --light-grey:    #A0A0B0;
+
+  /* ── CHEGG Landing Theme: Obsidian × Emerald × Gold ── */
+  --obsidian:         #0A0A0C;
+  --obsidian-surface: #111114;
+  --stone-dark:       #1A1A1E;
+  --stone-mid:        #252529;
+  --stone-muted:      #3A3A40;
+  --stone-border:     #4A4A52;
+  --stone-light:      #8A8A96;
+
+  --emerald:          #10B981;
+  --emerald-glow:     #34D399;
+  --emerald-dim:      #065F46;
+  --emerald-subtle:   rgba(16, 185, 129, 0.12);
+
+  --gold:             #C9A84C;
+  --gold-bright:      #F0C040;
+  --gold-dim:         #7A5C1E;
+  --gold-subtle:      rgba(201, 168, 76, 0.12);
+
+  --parchment:        #E8DCC8;
+  --parchment-muted:  #B8A88A;
 
   /* Surface Hierarchy (Obsidian Veil) */
   --surface:                 #0e141b;
@@ -285,4 +309,49 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ─── Landing Page Animations ────────────────────────────────────────────── */
+
+@keyframes shimmer-gold {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes float-piece {
+  0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+  33%       { transform: translateY(-18px) rotate(3deg); opacity: 0.9; }
+  66%       { transform: translateY(-8px) rotate(-2deg); opacity: 0.75; }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%       { opacity: 0.65; transform: scale(1.08); }
+}
+
+@keyframes grid-drift {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(60px); }
+}
+
+@keyframes hero-title-in {
+  0%   { opacity: 0; transform: translateY(40px) scale(0.96); filter: blur(8px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes card-in {
+  0%   { opacity: 0; transform: translateY(32px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scanline {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes particle-drift {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 0.6; }
+  100% { transform: translate(var(--dx, 60px), var(--dy, -80px)) scale(0.5); opacity: 0; }
 }

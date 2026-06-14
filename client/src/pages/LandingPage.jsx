@@ -1,89 +1,55 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BackgroundSVG from '../components/BackgroundSVG.jsx'
+import GlowBackground from '../components/Landing/GlowBackground.jsx'
+import LandingNavbar from '../components/Landing/LandingNavbar.jsx'
+import HeroSection from '../components/Landing/HeroSection.jsx'
+import FeatureCards from '../components/Landing/FeatureCards.jsx'
 import RulesPanel from '../components/GameUI/RulesPanel.jsx'
 import './LandingPage.css'
-
-const FEATURES = [
-  {
-    icon: '⬡',
-    title: 'Tactical Depth',
-    desc: 'Master the positioning of your ethereal minions on the obsidian grid.',
-  },
-  {
-    icon: '✦',
-    title: 'Mana Surge',
-    desc: 'Channel raw energy — mana grows each turn up to 6, spent wisely wins.',
-  },
-  {
-    icon: '♚',
-    title: 'Protect Your King',
-    desc: 'Guard your Villager at all costs. One successful elimination ends the game.',
-  },
-]
 
 export default function LandingPage() {
   const navigate = useNavigate()
   const [showRules, setShowRules] = useState(false)
 
   return (
-    <div className="landing">
-      <BackgroundSVG />
+    <div className="landing-v2">
+      {/* Animated obsidian + glow background */}
+      <GlowBackground />
 
-      {/* Header */}
-      <header className="landing-header">
-        <span className="landing-logo font-display">CHEGG</span>
-      </header>
+      {/* Glassmorphic navbar */}
+      <LandingNavbar onRules={() => setShowRules(true)} />
 
-      {/* Hero */}
-      <main className="landing-main">
-        <p className="landing-eyebrow font-label">Welcome to the Abyss</p>
+      {/* Hero section */}
+      <HeroSection
+        onJoin={() => navigate('/join')}
+        onCreate={() => navigate('/create')}
+      />
 
-        <h1 className="landing-title font-display">CHEGG</h1>
-        <div className="landing-divider" />
-        <p className="landing-subtitle font-body">Chess meets Minecraft</p>
+      {/* Feature cards section */}
+      <FeatureCards />
 
-        {/* Feature Cards */}
-        <div className="landing-features">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="feature-card">
-              <span className="feature-icon">{f.icon}</span>
-              <h3 className="feature-title font-label">{f.title}</h3>
-              <p className="feature-desc font-body">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* CTA Buttons */}
-        <div className="landing-cta">
+      {/* Footer strip */}
+      <footer className="landing-footer">
+        <div className="landing-footer-inner">
+          <span className="font-display landing-footer-logo">♔ CHEGG</span>
+          <span className="font-label landing-footer-tag">
+            Chess × Minecraft · Multiplayer Strategy
+          </span>
           <button
-            id="btn-join-room"
-            className="btn btn-outline landing-btn"
-            onClick={() => navigate('/join')}
+            id="btn-rules-landing"
+            className="landing-footer-rules"
+            onClick={() => setShowRules(true)}
           >
-            Join Room
-          </button>
-          <button
-            id="btn-create-room"
-            className="btn btn-outline landing-btn"
-            onClick={() => navigate('/create')}
-          >
-            Create Room
+            📖 How to Play
           </button>
         </div>
+        <div className="landing-footer-line" />
+        <p className="font-label landing-footer-copy">
+          2 players per game · Created with obsidian & enderpearls
+        </p>
+      </footer>
 
-        <p className="landing-online font-label">2 players per game · Online multiplayer</p>
-        <p className="landing-rules font-label">Rules are also available in deck building phase and the playground</p>
-
-        <button
-          id="btn-rules-landing"
-          className="btn btn-ghost landing-rules-btn"
-          onClick={() => setShowRules(true)}
-        >
-          📖 Rules
-        </button>
-      </main>
-
+      {/* Rules overlay */}
       {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
     </div>
   )
