@@ -275,10 +275,27 @@ body {
 
 /* ─── Scrollbar Styling ──────────────────────────────────────────────────── */
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--surface-container-low); }
-::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--outline); }
+html {
+  scroll-behavior: smooth;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold) var(--obsidian);
+}
+
+/* Webkit (Chrome, Brave, Edge, Safari) */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: var(--obsidian); }
+::-webkit-scrollbar-thumb {
+  background: var(--gold);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-bright);
+  box-shadow: 0 0 8px rgba(201, 168, 76, 0.5);
+}
 
 /* ─── Error / Status Messages ────────────────────────────────────────────── */
 
