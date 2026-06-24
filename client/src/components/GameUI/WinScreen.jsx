@@ -5,7 +5,7 @@ import { useState } from 'react'
 import BackgroundSVG from '../BackgroundSVG.jsx'
 import './WinScreen.css'
 
-export default function WinScreen({ winnerUsername, yourUsername, onLeave }) {
+export default function WinScreen({ winnerUsername, yourUsername, onRematch, onLeave }) {
   const youWon = winnerUsername === yourUsername
   const [dismissed, setDismissed] = useState(false)
 
@@ -34,6 +34,10 @@ export default function WinScreen({ winnerUsername, yourUsername, onLeave }) {
         </p>
 
         <div className="win-divider" />
+
+        <button className="win-rematch-btn" onClick={onRematch}>
+          Rematch
+        </button>
 
         <button className="win-leave-btn" onClick={onLeave}>
           ⇒ Leave

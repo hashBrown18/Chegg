@@ -10,6 +10,11 @@ const GameState = require('../game/GameState');
 // In-memory room store — used as fallback when MongoDB is not connected
 const inMemoryRooms = new Map();
 
+const VALID_MINION_IDS = new Set([
+  'villager', 'zombie', 'creeper', 'puffer_fish', 'iron_golem',
+  'skeleton', 'blaze', 'phantom', 'enderman', 'shulker_box', 'wither',
+]);
+
 function isMongoConnected() {
   return mongoose.connection.readyState === 1;
 }
@@ -127,7 +132,12 @@ function registerRoomHandlers(io, socket, activeGames) {
       socket.username = username.trim();
       socket.playerId = (playerId || '').trim();
 
-      socket.emit('room_created', { roomCode, hostToken, guestToken });
+      // Build guest join link server-side so the host never sees the raw guestToken
+      const clientUrl = process.env.CLIENT_URL || '';
+      const guestLink = clientUrl
+        ? `${clientUrl}/game/${roomCode}/${guestToken}`
+        : '';
+      socket.emit('room_created', { roomCode, hostToken, guestLink });
       console.log(`Room ${roomCode} created by ${username} (${isMongoConnected() ? 'MongoDB' : 'in-memory'})`);
     } catch (err) {
       console.error('create_room error:', err);
@@ -221,6 +231,20 @@ function registerRoomHandlers(io, socket, activeGames) {
         return;
       }
 
+      // Validate every card ID is a known minion and no card appears more than 5 times
+      const cardCounts = {};
+      for (const cardId of deck) {
+        if (!VALID_MINION_IDS.has(cardId)) {
+          socket.emit('deck_error', { message: 'Invalid deck: unknown minion ID detected.' });
+          return;
+        }
+        cardCounts[cardId] = (cardCounts[cardId] || 0) + 1;
+        if (cardCounts[cardId] > 5) {
+          socket.emit('deck_error', { message: 'Invalid deck: no single card may appear more than 5 times.' });
+          return;
+        }
+      }
+
       const room = await findRoom(roomCode);
       if (!room) {
         socket.emit('error_message', { message: 'Room not found' });
@@ -270,6 +294,7 @@ function registerRoomHandlers(io, socket, activeGames) {
             opponentCardCount: gameState.getPlayerHandCount('guest'),
             currentTurn: gameState.currentTurn,
             mana: gameState.getMana('host'),
+            opponentMana: gameState.getMana('guest'),
             maxMana: Math.min(gameState.turnNumber, 6),
             turnNumber: gameState.turnNumber,
             yourRole: 'host',
@@ -287,6 +312,7 @@ function registerRoomHandlers(io, socket, activeGames) {
             opponentCardCount: gameState.getPlayerHandCount('host'),
             currentTurn: gameState.currentTurn,
             mana: gameState.getMana('guest'),
+            opponentMana: gameState.getMana('host'),
             maxMana: Math.min(gameState.turnNumber, 6),
             turnNumber: gameState.turnNumber,
             yourRole: 'guest',

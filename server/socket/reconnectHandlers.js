@@ -55,7 +55,7 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         console.log(`Abandon timeout for ${username} in room ${roomCode}`);
 
         // Grant win to opponent
-        socket.to(roomCode).emit('abandon_win', {
+        io.to(roomCode).emit('abandon_win', {
           message: `${username} abandoned the game. You win!`,
         });
 
@@ -252,6 +252,7 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         opponentCardCount: gameState.getPlayerHandCount(opponentRole),
         currentTurn: gameState.currentTurn,
         mana: gameState.getMana(playerRole),
+        opponentMana: gameState.getMana(opponentRole),
         maxMana: Math.min(gameState.turnNumber, 6),
         turnNumber: gameState.turnNumber,
         yourRole: playerRole,
@@ -270,8 +271,10 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       });
 
       // Send mana update to reconnecting player
+      const opponentRoleReconnect = playerRole === 'host' ? 'guest' : 'host';
       socket.emit('mana_update', {
         yourMana: gameState.getMana(playerRole),
+        opponentMana: gameState.getMana(opponentRoleReconnect),
         maxMana: Math.min(gameState.turnNumber, 6),
       });
 

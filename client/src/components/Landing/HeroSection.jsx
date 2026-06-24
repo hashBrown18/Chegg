@@ -11,7 +11,7 @@
  */
 import AttractButton from '../ui/AttractButton.jsx'
 
-export default function HeroSection({ onJoin, onCreate }) {
+export default function HeroSection({ onJoin, onCreate, onSingleplayer }) {
   return (
     <section
       style={{
@@ -139,6 +139,18 @@ export default function HeroSection({ onJoin, onCreate }) {
         {/* Create Room — gold particle attraction */}
         <AttractButton onClick={onCreate} color="gold">
           ♟ <span>Create Room</span>
+        </AttractButton>
+      </div>
+
+      {/* ── Singleplayer CTA ── */}
+      <div
+        style={{
+          marginTop: '1rem',
+          animation: 'fadeInUp 0.6s var(--ease-out) 0.56s both',
+        }}
+      >
+        <AttractButton onClick={onSingleplayer} color="emerald" particleCount={8}>
+          🎮 <span>Singleplayer Mode (If You Don't Have Friends Skill Issue)</span>
         </AttractButton>
       </div>
 

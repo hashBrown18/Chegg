@@ -134,9 +134,10 @@ export default function GamePage() {
       clearSelections()
     })
 
-    socket.on('mana_update', ({ yourMana: ym, maxMana: mm }) => {
+    socket.on('mana_update', ({ yourMana: ym, opponentMana: om, maxMana: mm }) => {
       setYourMana(ym)
       setMaxMana(mm)
+      if (typeof om === 'number') setOpponentMana(om)
     })
 
     socket.on('your_hand', ({ hand }) => {
@@ -218,6 +219,7 @@ export default function GamePage() {
     setYourRole(data.yourRole)
     yourRoleRef.current = data.yourRole
     setYourMana(data.mana ?? 0)
+    setOpponentMana(data.opponentMana ?? 0)
     setMaxMana(data.maxMana ?? 1)
     setYourHand(data.yourHand || [])
     setOpponentHandCount(data.opponentCardCount ?? 0)
@@ -364,7 +366,7 @@ export default function GamePage() {
     sessionStorage.removeItem('chegg_username')
     sessionStorage.removeItem('chegg_player_token')
     sessionStorage.removeItem('chegg_host_token')
-    sessionStorage.removeItem('chegg_guest_token')
+    sessionStorage.removeItem('chegg_guest_link')
     navigate('/deck')
   }
 
@@ -374,7 +376,7 @@ export default function GamePage() {
     sessionStorage.removeItem('chegg_username')
     sessionStorage.removeItem('chegg_player_token')
     sessionStorage.removeItem('chegg_host_token')
-    sessionStorage.removeItem('chegg_guest_token')
+    sessionStorage.removeItem('chegg_guest_link')
     socket.disconnect()
     navigate('/')
   }

@@ -5,7 +5,7 @@
 
 const { calculateValidSquares, cellKey, calcEndermanTeleportTargets, buildOccupancyMap,
   getIronGolemSweepTargets, getWitherSplashTargets } = require('../game/MovementCalculator');
-const { getAttackManaCost, MINION_BY_ID } = require('../game/MinionLogic');
+const { getAttackManaCost, MINION_BY_ID, rowToIndex } = require('../game/MinionLogic');
 const TurnManager = require('../game/TurnManager');
 
 function registerGameHandlers(io, socket, activeGames) {
@@ -101,8 +101,10 @@ function registerGameHandlers(io, socket, activeGames) {
     io.to(roomCode).emit('board_update', { boardState: gameState.getBoardState() });
 
     // Send mana update to spawner
+    const opponentRole = playerRole === 'host' ? 'guest' : 'host';
     socket.emit('mana_update', {
       yourMana: gameState.getMana(playerRole),
+      opponentMana: gameState.getMana(opponentRole),
       maxMana: Math.min(gameState.turnNumber, 6),
     });
 
@@ -110,7 +112,6 @@ function registerGameHandlers(io, socket, activeGames) {
     socket.emit('your_hand', { hand: gameState.getPlayerHand(playerRole) });
 
     // Send updated card counts to opponent
-    const opponentRole = playerRole === 'host' ? 'guest' : 'host';
     emitToPlayer(io, gameState, roomCode, opponentRole, 'opponent_card_count', {
       count: gameState.getPlayerHandCount(playerRole),
     });
@@ -166,8 +167,10 @@ function registerGameHandlers(io, socket, activeGames) {
 
     // Deduct 1 mana for movement (ALL minions)
     gameState.deductMana(playerRole, 1);
+    const opponentRoleMove = playerRole === 'host' ? 'guest' : 'host';
     socket.emit('mana_update', {
       yourMana: gameState.getMana(playerRole),
+      opponentMana: gameState.getMana(opponentRoleMove),
       maxMana: Math.min(gameState.turnNumber, 6),
     });
 
@@ -202,11 +205,24 @@ function registerGameHandlers(io, socket, activeGames) {
 
     const { col, row } = targetCell;
 
+    // Compute valid attack squares server-side for ALL minion types
+    const { attackSquares } = calculateValidSquares(minion, gameState.board);
+
     // Handle each minion type's attack differently
     const destroyedMinions = [];
 
     switch (minion.type) {
       case 'creeper': {
+        // Validate target is within 8 surrounding cells of the creeper
+        const ri = rowToIndex(minion.position.row);
+        const targetRi = rowToIndex(row);
+        const dc = Math.abs(col - minion.position.col);
+        const dr = Math.abs(targetRi - ri);
+        if (dc > 1 || dr > 1 || (dc === 0 && dr === 0)) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
+          return;
+        }
+
         // Explosion: destroy ALL 8 surrounding + self
         const occupancy = buildOccupancyMap(gameState.board);
         const directions = [
@@ -214,7 +230,7 @@ function registerGameHandlers(io, socket, activeGames) {
           { dc: -1, dr: 0 }, { dc: 1, dr: 0 },
           { dc: -1, dr: 1 }, { dc: 0, dr: 1 }, { dc: 1, dr: 1 },
         ];
-        const { rowToIndex, indexToRow, isValidCell, ROWS } = require('../game/MinionLogic');
+        const { indexToRow, isValidCell, ROWS } = require('../game/MinionLogic');
         const cri = rowToIndex(minion.position.row);
 
         for (const dir of directions) {
@@ -234,9 +250,19 @@ function registerGameHandlers(io, socket, activeGames) {
       }
 
       case 'puffer_fish': {
-        // Hit all 4 diagonals simultaneously (friendly fire ON)
-        const { rowToIndex, indexToRow, isValidCell, ROWS } = require('../game/MinionLogic');
+        // Validate target is one of the 4 diagonal cells
         const pri = rowToIndex(minion.position.row);
+        const pfTargetRi = rowToIndex(row);
+        const pfDc = Math.abs(col - minion.position.col);
+        const pfDr = Math.abs(pfTargetRi - pri);
+        if (pfDc !== 1 || pfDr !== 1) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
+          return;
+        }
+
+        // Hit all 4 diagonals simultaneously (friendly fire ON)
+        const { indexToRow, isValidCell, ROWS } = require('../game/MinionLogic');
+        const pfPri = rowToIndex(minion.position.row);
         const diagDirs = [
           { dc: -1, dr: -1 }, { dc: 1, dr: -1 },
           { dc: -1, dr: 1 }, { dc: 1, dr: 1 },
@@ -244,7 +270,7 @@ function registerGameHandlers(io, socket, activeGames) {
 
         for (const dir of diagDirs) {
           const nc = minion.position.col + dir.dc;
-          const nri = pri + dir.dr;
+          const nri = pfPri + dir.dr;
           if (nri < 0 || nri >= ROWS.length) continue;
           const nr = indexToRow(nri);
           if (!isValidCell(nc, nr)) continue;
@@ -255,12 +281,22 @@ function registerGameHandlers(io, socket, activeGames) {
       }
 
       case 'iron_golem': {
-        // Sweeping attack — needs direction
-        if (!direction) {
-          socket.emit('error_message', { message: 'Iron Golem attack requires a direction' });
+        // Validate direction is valid
+        const validDirections = ['up', 'down', 'left', 'right'];
+        if (!direction || !validDirections.includes(direction)) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
           return;
         }
+        // Validate at least one sweep target contains an enemy
         const sweepTargets = getIronGolemSweepTargets(minion.position.col, minion.position.row, direction);
+        const hasValidSweepTarget = sweepTargets.some(t => {
+          const occ = gameState.getMinionAt(t.col, t.row);
+          return occ && occ.owner !== playerRole;
+        });
+        if (!hasValidSweepTarget) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
+          return;
+        }
         for (const target of sweepTargets) {
           const occupant = gameState.getMinionAt(target.col, target.row);
           if (occupant && occupant.owner !== playerRole) {
@@ -272,6 +308,12 @@ function registerGameHandlers(io, socket, activeGames) {
       }
 
       case 'wither': {
+        // Validate target is in computed valid attack squares
+        const isValidWitherTarget = attackSquares.some(sq => sq.col === col && sq.row === row);
+        if (!isValidWitherTarget) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
+          return;
+        }
         // Ranged attack: hit target + splash 4 surrounding
         const target = gameState.getMinionAt(col, row);
         if (target) {
@@ -294,6 +336,12 @@ function registerGameHandlers(io, socket, activeGames) {
       }
 
       case 'villager': {
+        // Validate target is in computed valid attack squares
+        const isValidVillagerTarget = attackSquares.some(sq => sq.col === col && sq.row === row);
+        if (!isValidVillagerTarget) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
+          return;
+        }
         // Attack + move to attacked square
         const target = gameState.getMinionAt(col, row);
         if (target && target.owner !== playerRole) {
@@ -309,6 +357,12 @@ function registerGameHandlers(io, socket, activeGames) {
       }
 
       case 'shulker_box': {
+        // Validate target is in computed valid attack squares
+        const isValidShulkerTarget = attackSquares.some(sq => sq.col === col && sq.row === row);
+        if (!isValidShulkerTarget) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
+          return;
+        }
         // Long range lateral attack, move to target position on kill
         const target = gameState.getMinionAt(col, row);
         if (target && target.owner !== playerRole) {
@@ -327,6 +381,12 @@ function registerGameHandlers(io, socket, activeGames) {
 
       default: {
         // Standard attack: zombie, skeleton, blaze, phantom, enderman
+        // Validate target is in computed valid attack squares
+        const isValidTarget = attackSquares.some(sq => sq.col === col && sq.row === row);
+        if (!isValidTarget) {
+          socket.emit('attack_error', { message: 'Invalid attack target.' });
+          return;
+        }
         const target = gameState.getMinionAt(col, row);
         if (!target) {
           socket.emit('error_message', { message: 'No target at that position' });
@@ -351,9 +411,11 @@ function registerGameHandlers(io, socket, activeGames) {
     const winner = gameState.checkWinCondition();
 
     // Broadcast updates
+    const opponentRoleAttack = playerRole === 'host' ? 'guest' : 'host';
     io.to(roomCode).emit('board_update', { boardState: gameState.getBoardState() });
     socket.emit('mana_update', {
       yourMana: gameState.getMana(playerRole),
+      opponentMana: gameState.getMana(opponentRoleAttack),
       maxMana: Math.min(gameState.turnNumber, 6),
     });
 
@@ -440,9 +502,11 @@ function registerGameHandlers(io, socket, activeGames) {
       // Enderman cannot attack the same turn as teleport
       minion.hasAttackedThisTurn = true;
 
+      const opponentRoleAbility = playerRole === 'host' ? 'guest' : 'host';
       io.to(roomCode).emit('board_update', { boardState: gameState.getBoardState() });
       socket.emit('mana_update', {
         yourMana: gameState.getMana(playerRole),
+        opponentMana: gameState.getMana(opponentRoleAbility),
         maxMana: Math.min(gameState.turnNumber, 6),
       });
     }
@@ -480,8 +544,10 @@ function registerGameHandlers(io, socket, activeGames) {
       : io.sockets.sockets.get(hostSocketId);
 
     if (activeSocket) {
+      const inactiveRole = newTurn === 'host' ? 'guest' : 'host';
       activeSocket.emit('mana_update', {
         yourMana: gameState.getMana(newTurn),
+        opponentMana: gameState.getMana(inactiveRole),
         maxMana: Math.min(turnNumber, 6),
       });
       activeSocket.emit('your_hand', {
@@ -495,11 +561,13 @@ function registerGameHandlers(io, socket, activeGames) {
 
     // Inactive player gets opponent card count
     if (inactiveSocket) {
+      const inactiveRole = newTurn === 'host' ? 'guest' : 'host';
       inactiveSocket.emit('opponent_card_count', {
         count: gameState.getPlayerHandCount(newTurn),
       });
       inactiveSocket.emit('mana_update', {
-        yourMana: gameState.getMana(newTurn === 'host' ? 'guest' : 'host'),
+        yourMana: gameState.getMana(inactiveRole),
+        opponentMana: gameState.getMana(newTurn),
         maxMana: Math.min(turnNumber, 6),
       });
     }

@@ -23,6 +23,7 @@ export default function LandingPage() {
       <HeroSection
         onJoin={() => navigate('/join')}
         onCreate={() => navigate('/create')}
+        onSingleplayer={() => navigate('/singleplayer')}
       />
 
       {/* Feature cards section */}

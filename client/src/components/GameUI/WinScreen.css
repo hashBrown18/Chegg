@@ -128,6 +128,31 @@
   box-shadow: 0 8px 24px rgba(214, 185, 252, 0.3);
 }
 
+.win-rematch-btn {
+  width: 100%;
+  padding: 14px 0;
+  background: #D6B9FC;
+  border: 2px solid #D6B9FC;
+  border-radius: 8px;
+  color: #1a0a2e;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.win-rematch-btn:hover {
+  background: #838CE5;
+  border-color: #838CE5;
+  color: #1a0a2e;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(131, 140, 229, 0.3);
+}
+
 /* Dismiss X button */
 .win-close-btn {
   position: absolute;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import socket from '../socket.js'
 import { getOrCreatePlayerId } from '../playerId.js'
@@ -37,6 +37,10 @@ export default function LobbyPage({ mode }) {
   const [loading, setLoading] = useState(false)
   const [connected, setConnected] = useState(socket.connected)
 
+  // Ref to hold latest username so socket callbacks don't depend on username state
+  const usernameRef = useRef(username)
+  useEffect(() => { usernameRef.current = username }, [username])
+
   useEffect(() => {
     // Connect socket when page mounts
     if (!socket.connected) {
@@ -72,15 +76,18 @@ export default function LobbyPage({ mode }) {
     socket.on('disconnect', onDisconnect)
 
     // ── CREATE ROOM listeners ──
-    socket.on('room_created', ({ roomCode, hostToken, guestToken }) => {
+    socket.on('room_created', ({ roomCode, hostToken, guestLink }) => {
       const finalCode = (roomCode || '').toLowerCase()
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
-      localStorage.setItem('chegg_username', username.trim())
+      localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
       // Store tokens for URL-based reconnection
       sessionStorage.setItem('chegg_player_token', hostToken)
       sessionStorage.setItem('chegg_host_token', hostToken)
-      sessionStorage.setItem('chegg_guest_token', guestToken)
+      // Store the pre-built guest join link (host never sees raw guestToken)
+      if (guestLink) {
+        sessionStorage.setItem('chegg_guest_link', guestLink)
+      }
       setGeneratedCode(finalCode)
       setStatus('Waiting for opponent...')
       setLoading(false)
@@ -96,7 +103,7 @@ export default function LobbyPage({ mode }) {
     socket.on('room_joined', ({ roomCode, opponentUsername, guestToken }) => {
       const finalCode = (roomCode || '').toLowerCase()
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
-      localStorage.setItem('chegg_username', username.trim())
+      localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
       // Store token for URL-based reconnection
       if (guestToken) {
@@ -127,7 +134,7 @@ export default function LobbyPage({ mode }) {
       socket.off('room_joined')
       socket.off('error_message')
     }
-  }, [navigate, username])
+  }, [navigate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -170,15 +177,13 @@ export default function LobbyPage({ mode }) {
 
   const buildShareLink = (code) => {
     if (!code) return ''
+    // Prefer the pre-built link from the server (host never holds raw guestToken)
+    const guestLink = sessionStorage.getItem('chegg_guest_link')
+    if (guestLink) return guestLink
+    // Fallback to join link if link not available
     const origin =
       (typeof window !== 'undefined' && window.location && window.location.origin) ||
       'https://chegg-game.vercel.app'
-    // Guest share link uses the guest token for direct game reconnection
-    const guestToken = sessionStorage.getItem('chegg_guest_token') || ''
-    if (guestToken) {
-      return `${origin}/game/${code.toLowerCase()}/${guestToken}`
-    }
-    // Fallback to join link if token not yet available
     return `${origin}/join/${code.toLowerCase()}`
   }
 
