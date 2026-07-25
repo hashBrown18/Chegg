@@ -248,26 +248,48 @@ function registerRoomHandlers(io, socket, activeGames) {
         }
       }
 
-      const room = await findRoom(roomCode);
-      if (!room) {
+      // Validate room exists before attempting atomic update
+      const existingRoom = await findRoom(roomCode);
+      if (!existingRoom) {
         console.error(`[DECK] Room ${roomCode} not found`);
         socket.emit('error_message', { message: 'Room not found' });
         return;
       }
 
-      // FIX: Update this player's socket ID in the room document before saving.
-      // If the socket reconnected between room creation and deck confirmation,
-      // the stored ID is stale and io.sockets.sockets.get() would return undefined.
+      // ATOMIC UPDATE: Use $set to only write this player's fields.
+      // Previous bug: both handlers called findRoom() (fresh snapshot) before either
+      // saved. Guest's save overwrote host's deck because it snapshot had host.deck=[]
+      // (schema default). $set ensures each handler only touches its own subdocument.
+      const setFields = {};
       if (playerRole === 'host') {
-        room.host.socketId = socket.id;
-        room.host.connected = true;
-        room.host.deck = deck;
+        setFields['host.socketId'] = socket.id;
+        setFields['host.connected'] = true;
+        setFields['host.deck'] = deck;
       } else {
-        room.guest.socketId = socket.id;
-        room.guest.connected = true;
-        room.guest.deck = deck;
+        setFields['guest.socketId'] = socket.id;
+        setFields['guest.connected'] = true;
+        setFields['guest.deck'] = deck;
       }
-      await saveRoom(room);
+
+      if (isMongoConnected()) {
+        await Room.findOneAndUpdate({ roomCode }, { $set: setFields });
+      } else {
+        // In-memory: same reference, direct mutation is safe
+        if (playerRole === 'host') {
+          existingRoom.host.socketId = socket.id;
+          existingRoom.host.connected = true;
+          existingRoom.host.deck = deck;
+        } else {
+          existingRoom.guest.socketId = socket.id;
+          existingRoom.guest.connected = true;
+          existingRoom.guest.deck = deck;
+        }
+        inMemoryRooms.set(roomCode, existingRoom);
+      }
+
+      // Re-fetch to get full current state (both players' decks) for readiness check
+      const room = await findRoom(roomCode);
+      console.log(`[DECK] After save — room.host: ${JSON.stringify(room.host)}, room.guest: ${JSON.stringify(room.guest)}`);
 
       // Check if both players have confirmed
       const hostReady = room.host.deck && room.host.deck.length === 15;
