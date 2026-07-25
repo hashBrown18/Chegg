@@ -258,7 +258,7 @@ function registerRoomHandlers(io, socket, activeGames) {
 
       // ATOMIC UPDATE: Use $set to only write this player's fields.
       // Previous bug: both handlers called findRoom() (fresh snapshot) before either
-      // saved. Guest's save overwrote host's deck because it snapshot had host.deck=[]
+      // saved. Guest's save overwrote host's deck because its snapshot had host.deck=[]
       // (schema default). $set ensures each handler only touches its own subdocument.
       const setFields = {};
       if (playerRole === 'host') {
@@ -271,8 +271,13 @@ function registerRoomHandlers(io, socket, activeGames) {
         setFields['guest.deck'] = deck;
       }
 
+      let room;
       if (isMongoConnected()) {
-        await Room.findOneAndUpdate({ roomCode }, { $set: setFields });
+        // { new: true } returns the UPDATED document — without it, Mongoose 8
+        // returns the pre-update doc and the identity map stays stale, so any
+        // subsequent findOne() would serve cached old data.
+        room = await Room.findOneAndUpdate({ roomCode }, { $set: setFields }, { new: true });
+        console.log(`[DECK] After ${playerRole} save — room.host: ${JSON.stringify(room.host)}, room.guest: ${JSON.stringify(room.guest)}`);
       } else {
         // In-memory: same reference, direct mutation is safe
         if (playerRole === 'host') {
@@ -285,11 +290,9 @@ function registerRoomHandlers(io, socket, activeGames) {
           existingRoom.guest.deck = deck;
         }
         inMemoryRooms.set(roomCode, existingRoom);
+        room = existingRoom;
+        console.log(`[DECK] After ${playerRole} save (in-memory) — room.host: ${JSON.stringify(room.host)}, room.guest: ${JSON.stringify(room.guest)}`);
       }
-
-      // Re-fetch to get full current state (both players' decks) for readiness check
-      const room = await findRoom(roomCode);
-      console.log(`[DECK] After save — room.host: ${JSON.stringify(room.host)}, room.guest: ${JSON.stringify(room.guest)}`);
 
       // Check if both players have confirmed
       const hostReady = room.host.deck && room.host.deck.length === 15;
