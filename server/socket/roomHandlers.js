@@ -138,7 +138,7 @@ function registerRoomHandlers(io, socket, activeGames) {
         ? `${clientUrl}/game/${roomCode}/${guestToken}`
         : '';
       socket.emit('room_created', { roomCode, hostToken, guestLink });
-      console.log(`Room ${roomCode} created by ${username} (${isMongoConnected() ? 'MongoDB' : 'in-memory'})`);
+      console.log(`Room ${roomCode} created by ${username} (${isMongoConnected() ? 'MongoDB' : 'in-memory'}) — host.socketId=${socket.id}`);
     } catch (err) {
       console.error('create_room error:', err);
       socket.emit('error_message', { message: 'Failed to create room: ' + err.message });
@@ -209,7 +209,7 @@ function registerRoomHandlers(io, socket, activeGames) {
         guestToken: room.guestToken,
       });
 
-      console.log(`${username} joined room ${code}`);
+      console.log(`${username} joined room ${code} — guest.socketId=${socket.id}`);
     } catch (err) {
       console.error('join_room error:', err);
       socket.emit('error_message', { message: 'Failed to join room: ' + err.message });
@@ -220,7 +220,10 @@ function registerRoomHandlers(io, socket, activeGames) {
   socket.on('deck_confirmed', async ({ deck }) => {
     try {
       const { roomCode, playerRole } = socket;
+      console.log(`[DECK] deck_confirmed received from ${socket.username || '?'} (${playerRole || '?'}) in room ${roomCode || '?'} — socket.id=${socket.id}`);
+
       if (!roomCode || !playerRole) {
+        console.error(`[DECK] Rejected: roomCode=${roomCode}, playerRole=${playerRole}`);
         socket.emit('error_message', { message: 'Not in a room' });
         return;
       }
@@ -247,14 +250,21 @@ function registerRoomHandlers(io, socket, activeGames) {
 
       const room = await findRoom(roomCode);
       if (!room) {
+        console.error(`[DECK] Room ${roomCode} not found`);
         socket.emit('error_message', { message: 'Room not found' });
         return;
       }
 
-      // Save deck for this player
+      // FIX: Update this player's socket ID in the room document before saving.
+      // If the socket reconnected between room creation and deck confirmation,
+      // the stored ID is stale and io.sockets.sockets.get() would return undefined.
       if (playerRole === 'host') {
+        room.host.socketId = socket.id;
+        room.host.connected = true;
         room.host.deck = deck;
       } else {
+        room.guest.socketId = socket.id;
+        room.guest.connected = true;
         room.guest.deck = deck;
       }
       await saveRoom(room);
@@ -262,6 +272,7 @@ function registerRoomHandlers(io, socket, activeGames) {
       // Check if both players have confirmed
       const hostReady = room.host.deck && room.host.deck.length === 15;
       const guestReady = room.guest && room.guest.deck && room.guest.deck.length === 15;
+      console.log(`[DECK] Room ${roomCode} — hostReady=${hostReady} (${room.host.deck ? room.host.deck.length : 'null'} cards), guestReady=${guestReady} (${room.guest && room.guest.deck ? room.guest.deck.length : 'null'} cards)`);
 
       if (playerRole === 'host' && !guestReady) {
         socket.emit('waiting_for_opponent', { message: 'Waiting for opponent to confirm deck...' });
@@ -270,6 +281,8 @@ function registerRoomHandlers(io, socket, activeGames) {
       }
 
       if (hostReady && guestReady) {
+        console.log(`[DECK] Both ready in room ${roomCode} — initializing game`);
+
         // Both ready — initialize game
         const gameState = new GameState();
         gameState.initializeGame(room.host.deck, room.guest.deck);
@@ -281,9 +294,30 @@ function registerRoomHandlers(io, socket, activeGames) {
         room.gameState.status = 'playing';
         await saveRoom(room);
 
-        // Send game_start to each player with their private data
-        const hostSocket = io.sockets.sockets.get(room.host.socketId);
-        const guestSocket = io.sockets.sockets.get(room.guest.socketId);
+        // FIX: Look up sockets — first try stored ID, then fall back to searching
+        // the room's connected sockets by playerRole property.
+        const hostSocketId = room.host.socketId;
+        const guestSocketId = room.guest.socketId;
+        console.log(`[DECK] Looking up sockets — host.socketId=${hostSocketId}, guest.socketId=${guestSocketId}`);
+
+        let hostSocket = io.sockets.sockets.get(hostSocketId);
+        let guestSocket = io.sockets.sockets.get(guestSocketId);
+
+        // Fallback: if lookup by stored ID fails, search connected sockets in this room
+        if (!hostSocket || !guestSocket) {
+          console.log(`[DECK] Socket ID lookup failed (host=${!!hostSocket}, guest=${!!guestSocket}) — falling back to room scan`);
+          for (const [, connectedSocket] of io.sockets.sockets) {
+            if (connectedSocket.roomCode === roomCode) {
+              if (connectedSocket.playerRole === 'host' && !hostSocket) {
+                hostSocket = connectedSocket;
+                console.log(`[DECK] Found host via room scan: ${connectedSocket.id}`);
+              } else if (connectedSocket.playerRole === 'guest' && !guestSocket) {
+                guestSocket = connectedSocket;
+                console.log(`[DECK] Found guest via room scan: ${connectedSocket.id}`);
+              }
+            }
+          }
+        }
 
         const boardState = gameState.getBoardState();
 
@@ -303,6 +337,9 @@ function registerRoomHandlers(io, socket, activeGames) {
             yourDeckCount: gameState.getPlayerDeckCount('host'),
             opponentDeckCount: gameState.getPlayerDeckCount('guest'),
           });
+          console.log(`[DECK] Emitted game_start to host (${hostSocket.id})`);
+        } else {
+          console.error(`[DECK] CRITICAL: Could not find host socket for room ${roomCode}. host.socketId=${hostSocketId}, room has ${io.sockets.sockets.size} total connections`);
         }
 
         if (guestSocket) {
@@ -321,6 +358,9 @@ function registerRoomHandlers(io, socket, activeGames) {
             yourDeckCount: gameState.getPlayerDeckCount('guest'),
             opponentDeckCount: gameState.getPlayerDeckCount('host'),
           });
+          console.log(`[DECK] Emitted game_start to guest (${guestSocket.id})`);
+        } else {
+          console.error(`[DECK] CRITICAL: Could not find guest socket for room ${roomCode}. guest.socketId=${guestSocketId}, room has ${io.sockets.sockets.size} total connections`);
         }
 
         console.log(`Game started in room ${roomCode}`);

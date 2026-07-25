@@ -78,6 +78,7 @@ export default function LobbyPage({ mode }) {
     // ── CREATE ROOM listeners ──
     socket.on('room_created', ({ roomCode, hostToken, guestLink }) => {
       const finalCode = (roomCode || '').toLowerCase()
+      console.log('[CHEGG] room_created:', finalCode, 'socket.id=', socket.id)
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
       localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
@@ -94,6 +95,7 @@ export default function LobbyPage({ mode }) {
     })
 
     socket.on('opponent_joined', ({ opponentUsername }) => {
+      console.log('[CHEGG] opponent_joined:', opponentUsername, '— navigating to /deck, socket.id=', socket.id)
       setStatus(`${opponentUsername} has joined! Heading to deck builder...`)
       // Both navigate to deck builder
       setTimeout(() => navigate('/deck'), 800)
@@ -102,6 +104,7 @@ export default function LobbyPage({ mode }) {
     // ── JOIN ROOM listeners ──
     socket.on('room_joined', ({ roomCode, opponentUsername, guestToken }) => {
       const finalCode = (roomCode || '').toLowerCase()
+      console.log('[CHEGG] room_joined:', finalCode, 'socket.id=', socket.id)
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
       localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())

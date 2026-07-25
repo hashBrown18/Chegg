@@ -120,13 +120,20 @@ export default function DeckBuilderPage() {
   const MAX_DECK = 15
 
   useEffect(() => {
-    if (!socket.connected) socket.connect()
+    if (!socket.connected) {
+      console.log('[DECK] Socket not connected, connecting... socket.id=', socket.id)
+      socket.connect()
+    } else {
+      console.log('[DECK] Socket already connected, socket.id=', socket.id)
+    }
 
     socket.on('waiting_for_opponent', ({ message }) => {
+      console.log('[DECK] Received waiting_for_opponent:', message)
       setWaiting(true)
     })
 
     socket.on('game_start', (data) => {
+      console.log('[DECK] Received game_start! Role:', data.yourRole, 'Hand:', data.yourHand?.length, 'cards')
       // Store initial game data in sessionStorage for GamePage
       sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
       const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
@@ -134,6 +141,7 @@ export default function DeckBuilderPage() {
       // Navigate to token-based game URL for persistent reconnection
       const roomCode = localStorage.getItem('chegg_room_code') || ''
       const playerToken = sessionStorage.getItem('chegg_player_token') || ''
+      console.log('[DECK] Navigating to game — roomCode:', roomCode, 'hasToken:', !!playerToken)
       if (roomCode && playerToken) {
         navigate(`/game/${roomCode}/${playerToken}`)
       } else {
@@ -142,9 +150,12 @@ export default function DeckBuilderPage() {
     })
 
     socket.on('error_message', ({ message }) => {
+      console.error('[DECK] Received error_message:', message)
       setError(message)
       setWaiting(false)
     })
+
+    console.log('[DECK] DeckBuilderPage mounted — socket.id=', socket.id, 'connected=', socket.connected)
 
     return () => {
       socket.off('waiting_for_opponent')
@@ -165,6 +176,7 @@ export default function DeckBuilderPage() {
   const confirmDeck = () => {
     if (chosen.length !== MAX_DECK) return
     setError('')
+    console.log('[DECK] Emitting deck_confirmed — socket.id=', socket.id, 'deck length=', chosen.length)
     socket.emit('deck_confirmed', { deck: chosen })
     setWaiting(true)
   }
