@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import socket from '../socket.js'
+import { getOrCreatePlayerId } from '../playerId.js'
 import BackgroundSVG from '../components/BackgroundSVG.jsx'
 import MinionPopup from '../components/DeckBuilder/MinionPopup.jsx'
 import RulesPanel from '../components/GameUI/RulesPanel.jsx'
@@ -155,12 +156,31 @@ export default function DeckBuilderPage() {
       setWaiting(false)
     })
 
+    // Server-side deck validation failures (e.g. unknown card id) must not leave
+    // the player staring at "Waiting for opponent..." forever.
+    socket.on('deck_error', ({ message }) => {
+      console.error('[DECK] Received deck_error:', message)
+      setError(message)
+      setWaiting(false)
+    })
+
     console.log('[DECK] DeckBuilderPage mounted — socket.id=', socket.id, 'connected=', socket.connected)
+
+    // A refresh loses the in-memory deck selection but the room still exists.
+    // Rejoin so the server keeps this socket in the room (and resumes waiting /
+    // sends game_start if the match already began).
+    const roomCode = localStorage.getItem('chegg_room_code') || ''
+    const playerToken = sessionStorage.getItem('chegg_player_token') || ''
+    if (roomCode && playerToken) {
+      console.log('[DECK] Rejoining room', roomCode, 'socket.id=', socket.id)
+      socket.emit('rejoin_game', { roomCode, playerToken, playerId: getOrCreatePlayerId() })
+    }
 
     return () => {
       socket.off('waiting_for_opponent')
       socket.off('game_start')
       socket.off('error_message')
+      socket.off('deck_error')
     }
   }, [navigate])
 
@@ -176,7 +196,13 @@ export default function DeckBuilderPage() {
   const confirmDeck = () => {
     if (chosen.length !== MAX_DECK) return
     setError('')
-    console.log('[DECK] Emitting deck_confirmed — socket.id=', socket.id, 'deck length=', chosen.length)
+    // If the socket dropped while building, reconnect first — socket.io buffers the
+    // emit and flushes it on connect, so the confirm is not lost.
+    if (!socket.connected) {
+      console.log('[DECK] Socket down on confirm — reconnecting before emit')
+      socket.connect()
+    }
+    console.log('[DECK] Emitting deck_confirmed — roomCode=', localStorage.getItem('chegg_room_code'), 'socket.id=', socket.id, 'deck length=', chosen.length)
     socket.emit('deck_confirmed', { deck: chosen })
     setWaiting(true)
   }

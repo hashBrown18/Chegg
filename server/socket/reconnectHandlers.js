@@ -4,6 +4,7 @@
 
 const mongoose = require('mongoose');
 const Room = require('../models/Room');
+const { findRoom } = require('./roomHandlers');
 
 // Helper: detect if Mongo is connected
 const isMongoConnected = () => mongoose.connection.readyState === 1;
@@ -114,15 +115,9 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       const pid = (playerId || '').trim();
       const uname = (username || '').trim();
 
-      let room = null;
-      if (isMongoConnected()) {
-        room = await Room.findOne({ roomCode: code });
-      } else {
-        // In-memory fallback: use activeGames as a proxy for "does this room exist"
-        room = activeGames.has(code)
-          ? { _inMemory: true, code }
-          : null;
-      }
+      // Works for both MongoDB and the in-memory fallback store, so a player can
+      // rejoin a deck-building room even when no game has been created yet.
+      const room = await findRoom(code);
 
       if (!room) {
         // Room no longer exists — tell the client to bail.
@@ -160,16 +155,11 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
 
       // Two rejoin paths:
       //   A) Game is in progress → restore full state via game_start
-      //   B) Game is still in deckbuilding / waiting → just rejoin the lobby
-      // COUNCIL FIX: BUG 1 — null crash on server restart
+      //   B) Room exists but the game has not started (deck building / waiting) → rejoin lobby
       const gameState = activeGames.get(code);
-      if (!gameState) {
-        socket.emit('game_error', { message: 'Game session expired. Please rejoin.' });
-        return;
-      }
-      const isPlaying = gameState.status === 'playing';
+      const roomStatus = (room.gameState && room.gameState.status) || 'waiting';
 
-      if (!isPlaying) {
+      if (roomStatus !== 'playing') {
         // Pre-game rejoin: cancel the 60s abandon timer (if any), update
         // socket/room bookkeeping, and tell the client to navigate back
         // to the deck builder.
@@ -187,18 +177,23 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         socket.roomCode = code;
         socket.playerRole = playerRole;
         socket.username = uname || (playerRole === 'host' ? room.host.username : room.guest.username);
-        socket.playerId = pid;
+        socket.playerId = pid || socket.playerId;
         socket.playerToken = token;
 
-        if (isMongoConnected()) {
-          if (playerRole === 'host') {
-            room.host.socketId = socket.id;
-            room.host.connected = true;
-          } else {
-            room.guest.socketId = socket.id;
-            room.guest.connected = true;
-          }
-          await room.save();
+        if (playerRole === 'host') {
+          room.host.socketId = socket.id;
+          room.host.connected = true;
+        } else {
+          room.guest.socketId = socket.id;
+          room.guest.connected = true;
+        }
+        if (isMongoConnected()) await room.save();
+
+        // If this player already confirmed their deck before refreshing, put the
+        // client back into its waiting state instead of asking them to rebuild it.
+        const myDeck = playerRole === 'host' ? room.host.deck : room.guest.deck;
+        if (myDeck && myDeck.length === 15) {
+          socket.emit('waiting_for_opponent', { message: 'Waiting for opponent to confirm deck...' });
         }
 
         // Tell the reconnecting client to head back to deck builder
@@ -207,6 +202,11 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
           message: `${socket.username} reconnected!`,
         });
         console.log(`${socket.username} re-joined lobby of room ${code}`);
+        return;
+      }
+
+      if (!gameState) {
+        socket.emit('game_error', { message: 'Game session expired. Please rejoin.' });
         return;
       }
 
@@ -228,7 +228,7 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       socket.roomCode = code;
       socket.playerRole = playerRole;
       socket.username = uname || (playerRole === 'host' ? room.host.username : room.guest.username);
-      socket.playerId = pid;
+      socket.playerId = pid || socket.playerId;
       socket.playerToken = token;
 
       // Update MongoDB

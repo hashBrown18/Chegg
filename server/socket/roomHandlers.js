@@ -220,7 +220,7 @@ function registerRoomHandlers(io, socket, activeGames) {
   socket.on('deck_confirmed', async ({ deck }) => {
     try {
       const { roomCode, playerRole } = socket;
-      console.log(`[DECK] deck_confirmed received from ${socket.username || '?'} (${playerRole || '?'}) in room ${roomCode || '?'} — socket.id=${socket.id}`);
+      console.log(`[DECK] deck_confirmed received from ${socket.username || '?'} (${playerRole || '?'}) in room ${roomCode || '?'} — socket.id=${socket.id} playerId=${socket.playerId || '?'} deckSize=${Array.isArray(deck) ? deck.length : 'invalid'}`);
 
       if (!roomCode || !playerRole) {
         console.error(`[DECK] Rejected: roomCode=${roomCode}, playerRole=${playerRole}`);
@@ -234,16 +234,12 @@ function registerRoomHandlers(io, socket, activeGames) {
         return;
       }
 
-      // Validate every card ID is a known minion and no card appears more than 5 times
-      const cardCounts = {};
+      // Validate every card ID is a known minion. Duplicates are allowed with no cap —
+      // the deck builder UI has no per-card limit, so any 15-card deck it can produce must
+      // be accepted here (a stricter rule here silently froze the game at 2/2 ready).
       for (const cardId of deck) {
         if (!VALID_MINION_IDS.has(cardId)) {
           socket.emit('deck_error', { message: 'Invalid deck: unknown minion ID detected.' });
-          return;
-        }
-        cardCounts[cardId] = (cardCounts[cardId] || 0) + 1;
-        if (cardCounts[cardId] > 5) {
-          socket.emit('deck_error', { message: 'Invalid deck: no single card may appear more than 5 times.' });
           return;
         }
       }
@@ -398,4 +394,6 @@ function registerRoomHandlers(io, socket, activeGames) {
 }
 
 module.exports = registerRoomHandlers;
+// Shared so reconnectHandlers can find a room in either MongoDB or the in-memory store.
+module.exports.findRoom = findRoom;
 
