@@ -8,6 +8,11 @@ const playerSchema = new mongoose.Schema({
   deck: { type: [String], default: [] },
   hand: { type: [String], default: [] },
   deckRemaining: { type: [String], default: [] },
+  // Secure rejoin token (random, sent only to this player)
+  rejoinToken: { type: String, default: '' },
+  // Forfeit timer persistence (survives server restarts)
+  disconnectedAt: { type: Number, default: 0 },
+  forfeitDeadline: { type: Number, default: 0 },
 }, { _id: false });
 
 const minionInstanceSchema = new mongoose.Schema({
@@ -35,15 +40,19 @@ const gameStateSchema = new mongoose.Schema({
     enum: ['waiting', 'deckbuilding', 'playing', 'finished'],
     default: 'waiting',
   },
+  // Set when the game finishes so a late reconnect can be shown the result.
+  winnerRole: { type: String, default: '' },
 }, { _id: false });
 
 const roomSchema = new mongoose.Schema({
   roomCode: { type: String, required: true, unique: true, index: true },
-  hostToken: { type: String, default: '' },
-  guestToken: { type: String, default: '' },
   host: { type: playerSchema, default: () => ({}) },
   guest: { type: playerSchema, default: () => ({}) },
   gameState: { type: gameStateSchema, default: () => ({}) },
+  // Pending rematch request for the finished match: 'host' | 'guest' | ''
+  rematch: {
+    requestedBy: { type: String, default: '' },
+  },
   createdAt: { type: Date, default: Date.now, expires: 86400 }, // TTL: 24 hours
 });
 

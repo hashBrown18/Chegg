@@ -17,10 +17,10 @@ function App() {
           <Route path="/join" element={<LobbyPage mode="join" />} />
           <Route path="/join/:roomId" element={<JoinRoomRedirect />} />
           <Route path="/deck" element={<DeckBuilderPage />} />
-          {/* Both the static /game route (used during normal flow) and the
-              dynamic /game/:roomId (used when joining via a shared link) render
-              the same GamePage. The component reads the roomId from URL params
-              when present, otherwise from sessionStorage. */}
+          {/* Both the static /game route and /game/:roomId render the same
+              GamePage. The trailing :playerToken segment is a legacy URL shape
+              kept so old shared links still resolve — identity comes from the
+              rejoin token in localStorage, never from the URL. */}
           <Route path="/game" element={<GamePage />} />
           <Route path="/game/:roomId" element={<GamePage />} />
           <Route path="/game/:roomId/:playerToken" element={<GamePage />} />

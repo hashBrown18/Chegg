@@ -8,6 +8,12 @@
     "dev": "nodemon index.js",
     "test": "jest --verbose"
   },
+  "jest": {
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/testUtils\\.js$"
+    ]
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -17,6 +23,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.4"
   }
 }

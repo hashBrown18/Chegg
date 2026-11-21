@@ -139,12 +139,11 @@ export default function DeckBuilderPage() {
       sessionStorage.setItem('chegg_game_data', JSON.stringify(data))
       const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
       if (username) sessionStorage.setItem('chegg_username', username)
-      // Navigate to token-based game URL for persistent reconnection
+      // Room-code-only game URL — identity comes from the stored rejoin token
       const roomCode = localStorage.getItem('chegg_room_code') || ''
-      const playerToken = sessionStorage.getItem('chegg_player_token') || ''
-      console.log('[DECK] Navigating to game — roomCode:', roomCode, 'hasToken:', !!playerToken)
-      if (roomCode && playerToken) {
-        navigate(`/game/${roomCode}/${playerToken}`)
+      console.log('[DECK] Navigating to game — roomCode:', roomCode)
+      if (roomCode) {
+        navigate(`/game/${roomCode}`)
       } else {
         navigate('/game')
       }
@@ -170,10 +169,10 @@ export default function DeckBuilderPage() {
     // Rejoin so the server keeps this socket in the room (and resumes waiting /
     // sends game_start if the match already began).
     const roomCode = localStorage.getItem('chegg_room_code') || ''
-    const playerToken = sessionStorage.getItem('chegg_player_token') || ''
-    if (roomCode && playerToken) {
+    const rejoinToken = localStorage.getItem('chegg_rejoin_token') || ''
+    if (roomCode && rejoinToken) {
       console.log('[DECK] Rejoining room', roomCode, 'socket.id=', socket.id)
-      socket.emit('rejoin_game', { roomCode, playerToken, playerId: getOrCreatePlayerId() })
+      socket.emit('rejoin_game', { roomCode, rejoinToken, playerId: getOrCreatePlayerId() })
     }
 
     return () => {

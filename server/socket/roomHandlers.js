@@ -51,12 +51,15 @@ function generateRoomCode() {
 }
 
 /**
- * Generate a random 16-character hex token for player identification in URLs.
- * Used for persistent reconnection — each player gets their own token baked into the URL.
+ * Generate a random 48-character hex token for secure rejoin verification.
+ * This is NOT the URL token — it's a secret kept only by the player and the server.
+ * Sent only to the owning player via private socket emit.
  */
-function generatePlayerToken() {
-  return crypto.randomBytes(8).toString('hex');
+function generateRejoinToken() {
+  return crypto.randomBytes(24).toString('hex');
 }
+
+
 
 function registerRoomHandlers(io, socket, activeGames) {
   // ─── CREATE ROOM ───
@@ -81,22 +84,21 @@ function registerRoomHandlers(io, socket, activeGames) {
         return;
       }
 
-      // Generate persistent player tokens for URL-based reconnection
-      const hostToken = generatePlayerToken();
-      const guestToken = generatePlayerToken();
+      // Each player gets a private rejoin secret. It is sent only to its owner
+      // and is the ONLY thing that can claim a seat — never in URLs, never broadcast.
+      const hostRejoinToken = generateRejoinToken();
 
       // Create room object
       let room;
       if (isMongoConnected()) {
         room = new Room({
           roomCode,
-          hostToken,
-          guestToken,
           host: {
             username: username.trim(),
             socketId: socket.id,
             playerId: (playerId || '').trim(),
             connected: true,
+            rejoinToken: hostRejoinToken,
           },
           gameState: {
             status: 'waiting',
@@ -106,13 +108,12 @@ function registerRoomHandlers(io, socket, activeGames) {
         // In-memory plain object fallback
         room = {
           roomCode,
-          hostToken,
-          guestToken,
           host: {
             username: username.trim(),
             socketId: socket.id,
             playerId: (playerId || '').trim(),
             connected: true,
+            rejoinToken: hostRejoinToken,
             deck: null,
           },
           guest: null,
@@ -132,12 +133,11 @@ function registerRoomHandlers(io, socket, activeGames) {
       socket.username = username.trim();
       socket.playerId = (playerId || '').trim();
 
-      // Build guest join link server-side so the host never sees the raw guestToken
+      // Share link carries ONLY the room code — the guest claims their seat by
+      // going through join_room, which mints their own private rejoin token.
       const clientUrl = process.env.CLIENT_URL || '';
-      const guestLink = clientUrl
-        ? `${clientUrl}/game/${roomCode}/${guestToken}`
-        : '';
-      socket.emit('room_created', { roomCode, hostToken, guestLink });
+      const guestLink = clientUrl ? `${clientUrl}/join/${roomCode}` : '';
+      socket.emit('room_created', { roomCode, guestLink, rejoinToken: hostRejoinToken });
       console.log(`Room ${roomCode} created by ${username} (${isMongoConnected() ? 'MongoDB' : 'in-memory'}) — host.socketId=${socket.id}`);
     } catch (err) {
       console.error('create_room error:', err);
@@ -178,11 +178,13 @@ function registerRoomHandlers(io, socket, activeGames) {
       }
 
       // Add guest to room
+      const guestRejoinToken = generateRejoinToken();
       room.guest = {
         username: username.trim(),
         socketId: socket.id,
         playerId: (playerId || '').trim(),
         connected: true,
+        rejoinToken: guestRejoinToken,
         deck: null,
       };
       room.gameState.status = 'deckbuilding';
@@ -202,11 +204,11 @@ function registerRoomHandlers(io, socket, activeGames) {
         opponentUsername: username.trim(),
       });
 
-      // Notify guest of success — include their persistent token
+      // Notify guest of success — only THEIR OWN rejoin token goes back to them.
       socket.emit('room_joined', {
         roomCode: code,
         opponentUsername: room.host.username,
-        guestToken: room.guestToken,
+        rejoinToken: guestRejoinToken,
       });
 
       console.log(`${username} joined room ${code} — guest.socketId=${socket.id}`);
@@ -396,4 +398,6 @@ function registerRoomHandlers(io, socket, activeGames) {
 module.exports = registerRoomHandlers;
 // Shared so reconnectHandlers can find a room in either MongoDB or the in-memory store.
 module.exports.findRoom = findRoom;
+// Shared so gameHandlers can persist the pending rematch on either store.
+module.exports.saveRoom = saveRoom;
 

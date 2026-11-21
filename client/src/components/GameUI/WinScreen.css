@@ -153,6 +153,36 @@
   box-shadow: 0 8px 24px rgba(131, 140, 229, 0.3);
 }
 
+.win-rematch-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.win-rematch-btn:disabled:hover {
+  background: #D6B9FC;
+  border-color: #D6B9FC;
+  color: #1a0a2e;
+}
+
+.win-request-text {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.win-notice {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #f87171;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
 /* Dismiss X button */
 .win-close-btn {
   position: absolute;

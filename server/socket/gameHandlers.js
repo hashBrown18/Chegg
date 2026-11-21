@@ -7,6 +7,8 @@ const { calculateValidSquares, cellKey, calcEndermanTeleportTargets, buildOccupa
   getIronGolemSweepTargets, getWitherSplashTargets } = require('../game/MovementCalculator');
 const { getAttackManaCost, MINION_BY_ID, rowToIndex } = require('../game/MinionLogic');
 const TurnManager = require('../game/TurnManager');
+const { findRoom, saveRoom } = require('./roomHandlers');
+const { finishGame } = require('./gameOver');
 
 function registerGameHandlers(io, socket, activeGames) {
   // ─── REQUEST HIGHLIGHTS ───
@@ -123,7 +125,8 @@ function registerGameHandlers(io, socket, activeGames) {
     });
 
     if (winner) {
-      endGame(io, roomCode, gameState, activeGames, winner);
+      finishGame(io, roomCode, activeGames, winner).catch(err =>
+        console.error('finishGame error:', err));
     }
   });
 
@@ -420,7 +423,8 @@ function registerGameHandlers(io, socket, activeGames) {
     });
 
     if (winner) {
-      endGame(io, roomCode, gameState, activeGames, winner);
+      finishGame(io, roomCode, activeGames, winner).catch(err =>
+        console.error('finishGame error:', err));
     }
   });
 
@@ -572,33 +576,120 @@ function registerGameHandlers(io, socket, activeGames) {
       });
     }
   });
+
+  // ─── REMATCH ───
+  // Pending request lives on the room ('host' | 'guest' | '') so it works with
+  // both the Mongo store and the in-memory fallback. Player identity always
+  // comes from the socket, never from the client payload.
+  socket.on('rematch_request', async () => {
+    const { roomCode, playerRole } = socket;
+    if (!roomCode || !playerRole) return;
+
+    // Only the finished match in this room may be rematched.
+    const gameState = activeGames.get(roomCode);
+    if (!gameState || gameState.status !== 'finished') return;
+
+    const room = await findRoom(roomCode);
+    if (!room) return;
+
+    const pending = (room.rematch && room.rematch.requestedBy) || '';
+    if (pending === playerRole) return; // duplicate click — ignore
+
+    const opponentRole = playerRole === 'host' ? 'guest' : 'host';
+    const opponentSocket = getPlayerSocket(io, roomCode, opponentRole);
+
+    if (pending) {
+      // Both players asked at the same time → mutual acceptance.
+      await startRematch(io, roomCode, room, activeGames);
+      return;
+    }
+
+    if (!opponentSocket) {
+      socket.emit('opponent_left', { message: 'Your opponent left the room.' });
+      return;
+    }
+
+    room.rematch = { requestedBy: playerRole };
+    await saveRoom(room);
+
+    opponentSocket.emit('rematch_received', {
+      fromUsername: socket.username || 'Your opponent',
+    });
+    console.log(`[REMATCH] ${socket.username} requested a rematch in room ${roomCode}`);
+  });
+
+  socket.on('rematch_accept', async () => {
+    const { roomCode, playerRole } = socket;
+    if (!roomCode || !playerRole) return;
+
+    const gameState = activeGames.get(roomCode);
+    if (!gameState || gameState.status !== 'finished') return;
+
+    const room = await findRoom(roomCode);
+    if (!room) return;
+
+    const pending = (room.rematch && room.rematch.requestedBy) || '';
+    // Nothing to accept, or accepting your own request.
+    if (!pending || pending === playerRole) return;
+
+    await startRematch(io, roomCode, room, activeGames);
+  });
+
+  socket.on('rematch_decline', async () => {
+    const { roomCode, playerRole } = socket;
+    if (!roomCode || !playerRole) return;
+
+    const room = await findRoom(roomCode);
+    if (!room) return;
+
+    const pending = (room.rematch && room.rematch.requestedBy) || '';
+    if (!pending || pending === playerRole) return; // not the one being asked
+
+    room.rematch = { requestedBy: '' };
+    await saveRoom(room);
+
+    const requesterSocket = getPlayerSocket(io, roomCode, pending);
+    if (requesterSocket) {
+      requesterSocket.emit('rematch_declined', {
+        message: `${socket.username || 'Your opponent'} declined the rematch`,
+      });
+    }
+    console.log(`[REMATCH] ${socket.username} declined the rematch in room ${roomCode}`);
+  });
 }
 
 /**
- * End the game and notify players
+ * Reset the room for a fresh deck-building phase and tell both players to go back.
+ * Clears the old game so nothing from the finished match leaks into the next one.
  */
-function endGame(io, roomCode, gameState, activeGames, winnerRole) {
-  gameState.status = 'finished';
-
-  // Get usernames from connected sockets
-  let winnerUsername = winnerRole;
-  let loserUsername = winnerRole === 'host' ? 'guest' : 'host';
-
-  // Try to find usernames from sockets in the room
-  const roomSockets = io.sockets.adapter.rooms.get(roomCode);
-  if (roomSockets) {
-    for (const sid of roomSockets) {
-      const s = io.sockets.sockets.get(sid);
-      if (s && s.playerRole === winnerRole) winnerUsername = s.username || winnerRole;
-      if (s && s.playerRole !== winnerRole) loserUsername = s.username || loserUsername;
-    }
+async function startRematch(io, roomCode, room, activeGames) {
+  room.rematch = { requestedBy: '' };
+  if (room.host) room.host.deck = [];
+  if (room.guest) room.guest.deck = [];
+  if (room.gameState) {
+    room.gameState.status = 'deckbuilding';
+    room.gameState.winnerRole = '';
   }
+  await saveRoom(room);
 
-  io.to(roomCode).emit('game_over', {
-    winner: winnerUsername,
-    loser: loserUsername,
-    winnerRole,
-  });
+  activeGames.delete(roomCode);
+
+  io.to(roomCode).emit('rematch_start', { roomCode });
+  console.log(`[REMATCH] Room ${roomCode} reset for a new match`);
+}
+
+/**
+ * Helper: get the socket for a player role in a room
+ */
+function getPlayerSocket(io, roomCode, targetRole) {
+  const roomSockets = io.sockets.adapter.rooms.get(roomCode);
+  if (!roomSockets) return null;
+
+  for (const sid of roomSockets) {
+    const s = io.sockets.sockets.get(sid);
+    if (s && s.playerRole === targetRole) return s;
+  }
+  return null;
 }
 
 /**

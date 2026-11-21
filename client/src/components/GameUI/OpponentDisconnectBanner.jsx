@@ -2,25 +2,28 @@
  * OpponentDisconnectBanner
  *
  * Shown to the player whose OPPONENT has disconnected.
- * Counts down from timeoutSeconds. Dismissed when opponent reconnects
- * or the game ends with abandon_win.
+ * The countdown is rendered from the server-provided remainingMs, converted to
+ * an endTime using performance.now() so it cannot drift from the server's
+ * forfeit clock due to clock skew. Removed when the opponent reconnects
+ * or the game finishes.
  */
 import { useEffect, useState } from 'react'
 import './OpponentDisconnectBanner.css'
 
-export default function OpponentDisconnectBanner({ message, timeoutSeconds = 60 }) {
-  const [secs, setSecs] = useState(timeoutSeconds)
+function secondsLeft(endTime) {
+  if (!endTime) return 0
+  return Math.max(0, Math.ceil((endTime - performance.now()) / 1000))
+}
 
-  // Reset and restart whenever a new disconnection event arrives
-  useEffect(() => {
-    setSecs(timeoutSeconds)
-  }, [timeoutSeconds, message])
+export default function OpponentDisconnectBanner({ message, endTime }) {
+  const [secs, setSecs] = useState(() => secondsLeft(endTime))
 
   useEffect(() => {
-    if (secs <= 0) return
-    const id = setInterval(() => setSecs(s => Math.max(0, s - 1)), 1000)
+    const tick = () => setSecs(secondsLeft(endTime))
+    tick()
+    const id = setInterval(tick, 500)
     return () => clearInterval(id)
-  }, [secs])
+  }, [endTime])
 
   // Urgency colour: red when ≤10s remain
   const urgent = secs <= 10

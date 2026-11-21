@@ -1,10 +1,24 @@
 /**
- * reconnectHandlers.js — Handles player disconnection, reconnection, and abandon timeout
+ * reconnectHandlers.js — Handles player disconnection, reconnection, and the
+ * single server-side forfeit clock.
  */
 
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Room = require('../models/Room');
-const { findRoom } = require('./roomHandlers');
+const { findRoom, saveRoom } = require('./roomHandlers');
+const {
+  FORFEIT_MS,
+  clearForfeitTimer,
+  clearRoomForfeitTimers,
+  clearForfeitState,
+  startForfeitTimer,
+  getForfeitDeadline,
+  getForfeitRemaining,
+  isPlayerOnline,
+  buildGameOverPayload,
+  finishGame,
+} = require('./gameOver');
 
 // Helper: detect if Mongo is connected
 const isMongoConnected = () => mongoose.connection.readyState === 1;
@@ -13,7 +27,15 @@ const isMongoConnected = () => mongoose.connection.readyState === 1;
 // from both memory and MongoDB if BOTH players are still disconnected.
 const fullDisconnectTimers = new Map();
 
-function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
+function constantTimeEqual(a, b) {
+  // Both must be buffers/strings of same length
+  const bufA = typeof a === 'string' ? Buffer.from(a) : a;
+  const bufB = typeof b === 'string' ? Buffer.from(b) : b;
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+function registerReconnectHandlers(io, socket, activeGames) {
   // ─── DISCONNECT ───
   socket.on('disconnect', async () => {
     const { roomCode, playerRole, username } = socket;
@@ -22,72 +44,64 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
     console.log(`Player ${username} (${playerRole}) disconnected from room ${roomCode}`);
 
     try {
-      // Mark player as disconnected in MongoDB
-      let room = null;
-      if (isMongoConnected()) {
-        room = await Room.findOne({ roomCode });
-        if (room) {
-          if (playerRole === 'host') {
-            room.host.connected = false;
-            room.host.socketId = '';
-          } else {
-            room.guest.connected = false;
-            room.guest.socketId = '';
-          }
-          await room.save();
-        }
+      // Mark player as disconnected (MongoDB or the in-memory store)
+      const room = await findRoom(roomCode);
+      if (!room) return;
+
+      const player = playerRole === 'host' ? room.host : room.guest;
+
+      // Refresh race: reloading opens a new socket that rebinds this slot before
+      // the old socket's disconnect lands. If the slot no longer points at this
+      // socket, the event is stale — ignore it instead of re-arming the forfeit
+      // clock and clobbering the new socket id.
+      if (!player || player.socketId !== socket.id) return;
+
+      // A finished game has nothing left to forfeit.
+      const gameState = activeGames.get(roomCode);
+      const status = gameState
+        ? gameState.status
+        : (room.gameState && room.gameState.status);
+      if (status === 'finished') return;
+
+      player.connected = false;
+      player.socketId = '';
+
+      // A pending rematch dies with the player who left.
+      const pendingRematch = (room.rematch && room.rematch.requestedBy) || '';
+      if (pendingRematch) {
+        room.rematch = { requestedBy: '' };
       }
 
-      // Notify opponent
+      await saveRoom(room);
+
+      if (pendingRematch) {
+        socket.to(roomCode).emit('opponent_left', {
+          message: `${username} left the room.`,
+        });
+      }
+
+      // Only a match in progress carries a forfeit clock; before the game or
+      // after it ends there is nothing to win by waiting.
+      if (status !== 'playing') {
+        socket.to(roomCode).emit('opponent_disconnected', {
+          message: `${username} disconnected. Waiting for reconnection...`,
+        });
+        await scheduleFullDisconnectCleanup(io, roomCode, activeGames);
+        return;
+      }
+
+      // ONE countdown per game and player. Clients only render the deadline.
+      const { remainingMs, deadline } = await startForfeitTimer(
+        roomCode,
+        playerRole,
+        () => declareForfeit(io, roomCode, playerRole, username, activeGames)
+      );
+
+      // Send remainingMs instead of absolute deadline (clock-skew safe)
       socket.to(roomCode).emit('opponent_disconnected', {
         message: `${username} disconnected. Waiting for reconnection...`,
-        timeoutSeconds: 60,
+        remainingMs,
       });
-
-      // Start 60-second abandon timer (existing behavior — gives opponent a win)
-      const timerKey = `${roomCode}_${playerRole}`;
-
-      // Clear any existing timer
-      if (disconnectTimers.has(timerKey)) {
-        clearTimeout(disconnectTimers.get(timerKey));
-      }
-
-      const timer = setTimeout(async () => {
-        console.log(`Abandon timeout for ${username} in room ${roomCode}`);
-
-        // Grant win to opponent
-        io.to(roomCode).emit('abandon_win', {
-          message: `${username} abandoned the game. You win!`,
-        });
-
-        // Mark game as finished
-        const gameState = activeGames.get(roomCode);
-        if (gameState) {
-          gameState.status = 'finished';
-        }
-
-        try {
-          if (isMongoConnected()) {
-            const r = await Room.findOne({ roomCode });
-            if (r) {
-              r.gameState.status = 'finished';
-              await r.save();
-            }
-          }
-        } catch (e) {
-          console.error('Error updating room on abandon:', e);
-        }
-
-        // Game is over — cancel any pending full-disconnect cleanup.
-        if (fullDisconnectTimers.has(roomCode)) {
-          clearTimeout(fullDisconnectTimers.get(roomCode));
-          fullDisconnectTimers.delete(roomCode);
-        }
-
-        disconnectTimers.delete(timerKey);
-      }, 60000); // 60 seconds
-
-      disconnectTimers.set(timerKey, timer);
 
       // Start a 5-minute full-disconnect cleanup timer if the other player
       // is also gone. This removes the room entirely from memory + MongoDB
@@ -99,11 +113,10 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
   });
 
   // ─── REJOIN GAME ───
-  // Accepts { roomCode, playerToken } (preferred — URL-based identity) or
-  // { roomCode, playerId } (legacy fallback) or { roomCode, username }.
-  // The room is found by roomCode (lowercased). The player slot is matched
-  // first by playerToken, then by playerId, then by username.
-  socket.on('rejoin_game', async ({ roomCode, playerToken, playerId, username }) => {
+  // Accepts ONLY { roomCode, rejoinToken }. The rejoin token is a per-player
+  // random secret, compared in constant time. A username, playerId or role alone
+  // never grants a seat — anything else is rejected before any state is touched.
+  socket.on('rejoin_game', async ({ roomCode, rejoinToken, playerId, username }) => {
     try {
       if (!roomCode) {
         socket.emit('error_message', { message: 'Room code is required to rejoin' });
@@ -111,9 +124,14 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       }
 
       const code = roomCode.trim().toLowerCase();
-      const token = (playerToken || '').trim();
+      const token = (rejoinToken || '').trim();
       const pid = (playerId || '').trim();
       const uname = (username || '').trim();
+
+      if (!token) {
+        socket.emit('error_message', { message: 'Rejoin token is required' });
+        return;
+      }
 
       // Works for both MongoDB and the in-memory fallback store, so a player can
       // rejoin a deck-building room even when no game has been created yet.
@@ -125,31 +143,35 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         return;
       }
 
-      // Match player slot. Primary: playerToken → fallback: playerId → fallback: username.
       let playerRole = null;
-      if (token) {
-        if (room.hostToken === token) {
-          playerRole = 'host';
-        } else if (room.guestToken === token) {
-          playerRole = 'guest';
-        }
-      }
-      if (!playerRole && pid) {
-        if (room.host && room.host.playerId === pid) {
-          playerRole = 'host';
-        } else if (room.guest && room.guest.playerId === pid) {
-          playerRole = 'guest';
-        }
-      }
-      if (!playerRole && uname) {
-        if (room.host && room.host.username === uname) {
-          playerRole = 'host';
-        } else if (room.guest && room.guest.username === uname) {
-          playerRole = 'guest';
-        }
+      if (room.host && room.host.rejoinToken && constantTimeEqual(token, room.host.rejoinToken)) {
+        playerRole = 'host';
+      } else if (room.guest && room.guest.rejoinToken && constantTimeEqual(token, room.guest.rejoinToken)) {
+        playerRole = 'guest';
       }
       if (!playerRole) {
-        socket.emit('error_message', { message: 'Player not found in this room' });
+        socket.emit('error_message', { message: 'Invalid rejoin token' });
+        return;
+      }
+
+      const roomStatus = (room.gameState && room.gameState.status) || 'waiting';
+
+      // Finished games cannot be resumed — hand the stored result to the player
+      // who reconnects late (e.g. after losing on the forfeit clock).
+      if (roomStatus === 'finished') {
+        clearForfeitTimer(code, playerRole);
+        socket.join(code);
+        socket.roomCode = code;
+        socket.playerRole = playerRole;
+        socket.username = uname || (playerRole === 'host' ? room.host.username : room.guest.username);
+        socket.playerId = pid || socket.playerId;
+
+        const winnerRole = (room.gameState && room.gameState.winnerRole) || '';
+        if (winnerRole) {
+          socket.emit('game_over', buildGameOverPayload(room, winnerRole));
+        } else {
+          socket.emit('room_expired', { roomCode: code });
+        }
         return;
       }
 
@@ -157,17 +179,13 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       //   A) Game is in progress → restore full state via game_start
       //   B) Room exists but the game has not started (deck building / waiting) → rejoin lobby
       const gameState = activeGames.get(code);
-      const roomStatus = (room.gameState && room.gameState.status) || 'waiting';
 
       if (roomStatus !== 'playing') {
-        // Pre-game rejoin: cancel the 60s abandon timer (if any), update
+        // Pre-game rejoin: cancel the forfeit timer (if any), update
         // socket/room bookkeeping, and tell the client to navigate back
         // to the deck builder.
-        const timerKey = `${code}_${playerRole}`;
-        if (disconnectTimers.has(timerKey)) {
-          clearTimeout(disconnectTimers.get(timerKey));
-          disconnectTimers.delete(timerKey);
-        }
+        clearForfeitTimer(code, playerRole);
+        await clearForfeitState(code);
         if (fullDisconnectTimers.has(code)) {
           clearTimeout(fullDisconnectTimers.get(code));
           fullDisconnectTimers.delete(code);
@@ -178,7 +196,6 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         socket.playerRole = playerRole;
         socket.username = uname || (playerRole === 'host' ? room.host.username : room.guest.username);
         socket.playerId = pid || socket.playerId;
-        socket.playerToken = token;
 
         if (playerRole === 'host') {
           room.host.socketId = socket.id;
@@ -187,7 +204,7 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
           room.guest.socketId = socket.id;
           room.guest.connected = true;
         }
-        if (isMongoConnected()) await room.save();
+        await saveRoom(room);
 
         // If this player already confirmed their deck before refreshing, put the
         // client back into its waiting state instead of asking them to rebuild it.
@@ -211,13 +228,9 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       }
 
       // ── Playing-state rejoin ──
-      // Cancel abandon timer
-      const timerKey = `${code}_${playerRole}`;
-      if (disconnectTimers.has(timerKey)) {
-        clearTimeout(disconnectTimers.get(timerKey));
-        disconnectTimers.delete(timerKey);
-        console.log(`Cancelled abandon timer for ${socket.username || uname} in room ${code}`);
-      }
+      // Cancel the forfeit clock immediately — the player is back.
+      clearForfeitTimer(code, playerRole);
+      await clearForfeitState(code);
       if (fullDisconnectTimers.has(code)) {
         clearTimeout(fullDisconnectTimers.get(code));
         fullDisconnectTimers.delete(code);
@@ -229,19 +242,16 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
       socket.playerRole = playerRole;
       socket.username = uname || (playerRole === 'host' ? room.host.username : room.guest.username);
       socket.playerId = pid || socket.playerId;
-      socket.playerToken = token;
 
       // Update MongoDB
-      if (isMongoConnected()) {
-        if (playerRole === 'host') {
-          room.host.socketId = socket.id;
-          room.host.connected = true;
-        } else {
-          room.guest.socketId = socket.id;
-          room.guest.connected = true;
-        }
-        await room.save();
+      if (playerRole === 'host') {
+        room.host.socketId = socket.id;
+        room.host.connected = true;
+      } else {
+        room.guest.socketId = socket.id;
+        room.guest.connected = true;
       }
+      await saveRoom(room);
 
       // Send full game state to reconnecting player
       const opponentRole = playerRole === 'host' ? 'guest' : 'host';
@@ -278,7 +288,17 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
         maxMana: Math.min(gameState.turnNumber, 6),
       });
 
-      // Notify opponent
+      // If the opponent is STILL gone, show this player their remaining clock
+      // (both players may have refreshed at once).
+      const opponentRemainingMs = getForfeitRemaining(code, opponentRole);
+      if (opponentRemainingMs && !isPlayerOnline(io, code, opponentRole)) {
+        socket.emit('opponent_disconnected', {
+          message: `${opponentRole === 'host' ? room.host.username : room.guest.username} disconnected. Waiting for reconnection...`,
+          remainingMs: opponentRemainingMs,
+        });
+      }
+
+      // Notify opponent — this is what clears their banner and timer state.
       socket.to(code).emit('opponent_reconnected', {
         message: `${socket.username} reconnected!`,
       });
@@ -292,10 +312,28 @@ function registerReconnectHandlers(io, socket, activeGames, disconnectTimers) {
 }
 
 /**
+ * The forfeit clock expired for one player.
+ * Winner = the player still connected. If BOTH are gone, the game is abandoned
+ * with no winner (nobody is awarded a bogus victory).
+ */
+async function declareForfeit(io, roomCode, goneRole, goneUsername, activeGames) {
+  try {
+    const opponentRole = goneRole === 'host' ? 'guest' : 'host';
+    if (isPlayerOnline(io, roomCode, opponentRole)) {
+      console.log(`Abandon timeout: ${goneUsername} in room ${roomCode} forfeits`);
+      await finishGame(io, roomCode, activeGames, opponentRole);
+    } else {
+      console.log(`Abandon timeout: both players gone in room ${roomCode} — abandoning`);
+      await finishGame(io, roomCode, activeGames, null);
+    }
+  } catch (err) {
+    console.error('forfeit handler error:', err);
+  }
+}
+
+/**
  * Schedule a 5-minute cleanup if BOTH players are disconnected.
- * If only one is gone, the existing 60s abandon timer handles the win.
- * If the game finishes (status='finished') before the timer fires, it is
- * cancelled from the abandon-timeout callback.
+ * If only one is gone, the forfeit timer handles the result.
  */
 async function scheduleFullDisconnectCleanup(io, roomCode, activeGames) {
   if (fullDisconnectTimers.has(roomCode)) return; // already scheduled
@@ -338,4 +376,15 @@ async function scheduleFullDisconnectCleanup(io, roomCode, activeGames) {
   fullDisconnectTimers.set(roomCode, timer);
 }
 
+/**
+ * Drop every pending 5-minute cleanup timer (used on SIGTERM/SIGINT so the
+ * process leaves no live timers behind).
+ */
+function clearAllDisconnectTimers() {
+  for (const t of fullDisconnectTimers.values()) clearTimeout(t);
+  fullDisconnectTimers.clear();
+}
+
 module.exports = registerReconnectHandlers;
+module.exports.declareForfeit = declareForfeit;
+module.exports.clearAllDisconnectTimers = clearAllDisconnectTimers;

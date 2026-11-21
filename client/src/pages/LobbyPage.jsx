@@ -76,16 +76,17 @@ export default function LobbyPage({ mode }) {
     socket.on('disconnect', onDisconnect)
 
     // ── CREATE ROOM listeners ──
-    socket.on('room_created', ({ roomCode, hostToken, guestLink }) => {
+    socket.on('room_created', ({ roomCode, guestLink, rejoinToken }) => {
       const finalCode = (roomCode || '').toLowerCase()
       console.log('[CHEGG] room_created:', finalCode, 'socket.id=', socket.id)
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
       localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
-      // Store tokens for URL-based reconnection
-      sessionStorage.setItem('chegg_player_token', hostToken)
-      sessionStorage.setItem('chegg_host_token', hostToken)
-      // Store the pre-built guest join link (host never sees raw guestToken)
+      // Store secure rejoin token for auto-reconnect
+      if (rejoinToken) {
+        localStorage.setItem('chegg_rejoin_token', rejoinToken)
+      }
+      // Store the share link (room code only — the guest mints their own token)
       if (guestLink) {
         sessionStorage.setItem('chegg_guest_link', guestLink)
       }
@@ -102,15 +103,15 @@ export default function LobbyPage({ mode }) {
     })
 
     // ── JOIN ROOM listeners ──
-    socket.on('room_joined', ({ roomCode, opponentUsername, guestToken }) => {
+    socket.on('room_joined', ({ roomCode, opponentUsername, rejoinToken }) => {
       const finalCode = (roomCode || '').toLowerCase()
       console.log('[CHEGG] room_joined:', finalCode, 'socket.id=', socket.id)
       localStorage.setItem('chegg_room_code', finalCode)   // persist for reconnection
       localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
-      // Store token for URL-based reconnection
-      if (guestToken) {
-        sessionStorage.setItem('chegg_player_token', guestToken)
+      // Store secure rejoin token for auto-reconnect
+      if (rejoinToken) {
+        localStorage.setItem('chegg_rejoin_token', rejoinToken)
       }
       setStatus(`Joining room ${finalCode}... Heading to deck builder!`)
       setTimeout(() => navigate('/deck'), 600)
@@ -180,7 +181,7 @@ export default function LobbyPage({ mode }) {
 
   const buildShareLink = (code) => {
     if (!code) return ''
-    // Prefer the pre-built link from the server (host never holds raw guestToken)
+    // Prefer the pre-built link from the server (room code only — no credentials)
     const guestLink = sessionStorage.getItem('chegg_guest_link')
     if (guestLink) return guestLink
     // Fallback to join link if link not available

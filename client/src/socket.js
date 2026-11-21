@@ -4,7 +4,11 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
 
 const socket = io(SOCKET_URL, {
   autoConnect: false,
-  reconnection: false, // We handle reconnection manually per CHEGG spec
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  randomizationFactor: 0.5,
 })
 
 export default socket

@@ -50,21 +50,18 @@ export default function ReconnectOverlay({ onGiveUp }) {
 
     function emitReconnectAttempt() {
       try {
-        const raw = sessionStorage.getItem('chegg_game_data')
-        if (!raw) { setPhase('failed'); setErrorMsg('No session data found.'); return }
-        const { hostUsername, guestUsername, yourRole } = JSON.parse(raw)
-        const username = yourRole === 'host' ? hostUsername : guestUsername
-
-        // roomCode is stored in localStorage by LobbyPage
+        // Identity is the private rejoin token in localStorage — username and
+        // playerId are metadata only and cannot claim a seat on their own.
         const roomCode = localStorage.getItem('chegg_room_code')
+        const rejoinToken = localStorage.getItem('chegg_rejoin_token')
         const playerId = localStorage.getItem('chegg_player_id')
-        if (!roomCode) {
+        if (!roomCode || !rejoinToken) {
           setPhase('failed')
           setErrorMsg('Session credentials missing.')
           return
         }
 
-        socket.emit('rejoin_game', { roomCode, playerId, username })
+        socket.emit('rejoin_game', { roomCode, rejoinToken, playerId })
       } catch {
         setPhase('failed')
         setErrorMsg('Could not read session data.')

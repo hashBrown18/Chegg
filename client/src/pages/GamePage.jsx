@@ -27,9 +27,16 @@ import './GamePage.css'
 
 export default function GamePage() {
   const navigate = useNavigate()
-  const { roomId, playerToken } = useParams()
+  const { roomId } = useParams()
   const playerId = localStorage.getItem('chegg_player_id') || getOrCreatePlayerId()
   const [roomNotFound, setRoomNotFound] = useState(false)
+
+  // Secure rejoin token (localStorage only — never in the URL, never shared).
+  // The room code comes from the URL when present, otherwise from localStorage
+  // so the static /game route still knows which room to rejoin.
+  const rejoinToken = localStorage.getItem('chegg_rejoin_token') || ''
+  const roomCode = roomId || localStorage.getItem('chegg_room_code') || ''
+  const username = sessionStorage.getItem('chegg_username') || ''
 
   useEffect(() => {
     if (!localStorage.getItem('chegg_player_id')) {
@@ -60,12 +67,16 @@ export default function GamePage() {
 
   // ── UI State ──
   const [showRules, setShowRules] = useState(false)
-  const [winData, setWinData] = useState(null)           // { winner, loser, winnerRole }
-  // Opponent disconnected (shown to the waiting player)
-  const [opponentDisconnect, setOpponentDisconnect] = useState(null) // { message, timeoutSeconds }
+  const [winData, setWinData] = useState(null)           // { youWon, winnerUsername }
+  // Rematch request state — 'idle' | 'requested' | 'incoming' | 'blocked'
+  const [rematch, setRematch] = useState({ state: 'idle', fromName: '', notice: '' })
+  // Opponent disconnected (shown to the waiting player) — uses remainingMs from server
+  const [opponentDisconnect, setOpponentDisconnect] = useState(null) // { message, remainingMs, endTime }
   // Self disconnected (shown to the player who lost connection)
   const [showReconnectOverlay, setShowReconnectOverlay] = useState(false)
   const [moveError, setMoveError] = useState(null)       // { message }
+  // Socket connection state for "Reconnecting..." indicator
+  const [isConnecting, setIsConnecting] = useState(false)
 
   // Track opponent mana changes through turn_change
   const opponentManaRef = useRef(0)
@@ -74,6 +85,7 @@ export default function GamePage() {
   // need these as effect dependencies (which would re-register listeners).
   const yourRoleRef = useRef(null)
   const currentTurnRef = useRef('host')
+  const gameDataRef = useRef(null) // set as soon as the server hands over game state
 
   // COUNCIL FIX: BUG 3 — refs for all state read inside socket handlers to
   // avoid stale closures from the empty-dep useEffect registration.
@@ -92,31 +104,53 @@ export default function GamePage() {
     boardStateRef.current = boardState
   }, [selectedMinion, selectedHandIndex, yourHand, highlights, boardState])
 
-   // ── Guard: if someone opens /game/:roomId with no session, redirect to join flow ──
-  // Tokens handle identity now — only redirect if there's truly no room context.
+  // A seat is only ever claimed with the private rejoin token — no token, no room
+  // context (or an old shared link) goes through the join flow instead.
   useEffect(() => {
-    if (roomId && !playerToken && !sessionStorage.getItem('chegg_game_data')) {
-      // No token and no session — this is a fresh visit via old-format link.
-      // Redirect to /join/:roomId so they can enter username and join properly.
-      navigate(`/join/${roomId}`, { replace: true })
+    if (!roomCode || !rejoinToken) {
+      navigate(roomCode ? `/join/${roomCode}` : '/', { replace: true })
     }
-  }, [roomId, playerToken, navigate])
+  }, [roomCode, rejoinToken, navigate])
 
   // ── Mount: register socket events ──
   useEffect(() => {
-    if (!socket.connected) socket.connect({ query: { roomId, playerId } })
+    // Connect if not already
+    if (!socket.connected) {
+      socket.connect({ query: { roomId, playerId } })
+    }
 
     // COUNCIL FIX: BUG 4 — removed sessionStorage as third source of truth for hand state.
     // Hand data now comes only from server via game_start and your_hand events.
 
-    if (roomId) {
-      // Re-join the room on the server side to ensure latest state and socket association.
-      // Primary identity: playerToken (URL-based). Fallback: playerId + username.
-      const username = sessionStorage.getItem('chegg_username') || ''
-      const token = playerToken || sessionStorage.getItem('chegg_player_token') || ''
-      console.log(`[CHEGG] Rejoining room ${roomId} with token ${token ? token.slice(0, 8) + '...' : 'none'}`)
-      socket.emit('rejoin_game', { roomCode: roomId, playerToken: token, playerId, username })
+    if (roomCode && rejoinToken) {
+      // Initial join/rejoin on mount — the private rejoin token is the only credential.
+      console.log(`[CHEGG] Joining room ${roomCode}`)
+      socket.emit('rejoin_game', { roomCode, rejoinToken, playerId, username })
     }
+
+    // ── Auto-reconnect on socket connect (socket.io handles reconnection, we rejoin) ──
+    const onConnect = () => {
+      setIsConnecting(false)
+      if (roomCode && rejoinToken) {
+        console.log(`[CHEGG] Socket reconnected — re-joining room ${roomCode}`)
+        socket.emit('rejoin_game', {
+          roomCode,
+          rejoinToken,
+          playerId,
+          username,
+        })
+      }
+    }
+
+    // Track disconnection for "Reconnecting..." UI
+    const onDisconnect = (reason) => {
+      if (reason !== 'io client disconnect') {
+        setIsConnecting(true)
+      }
+    }
+
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
 
     // ── Game events ──
     socket.on('game_start', (data) => {
@@ -126,6 +160,7 @@ export default function GamePage() {
       if (data.isReconnection) {
         // Reconnection: server sent full state.
         setShowReconnectOverlay(false)
+        setIsConnecting(false)
       }
     })
 
@@ -165,9 +200,39 @@ export default function GamePage() {
     })
 
     socket.on('game_over', (data) => {
+      // Each client derives its own result from its own identity. The payload is
+      // shared by both players, so usernames/text can never decide the outcome.
+      const youWon = data.winnerId
+        ? data.winnerId === playerId
+        : data.winnerRole === yourRoleRef.current
       setShowReconnectOverlay(false)
       setOpponentDisconnect(null)
-      setWinData(data)
+      setWinData({
+        youWon,
+        winnerUsername: data.winnerUsername || 'Your opponent',
+      })
+      setRematch({ state: 'idle', fromName: '', notice: '' })
+    })
+
+    socket.on('game_abandoned', () => {
+      // Both players were gone when the clock ran out — nobody wins.
+      setOpponentDisconnect(null)
+      setRoomNotFound(true)
+    })
+
+    socket.on('room_expired', () => setRoomNotFound(true))
+
+    socket.on('game_error', () => setRoomNotFound(true))
+
+    // A rejected rejoin (bad/missing token) before the game state arrives means
+    // this browser cannot claim the seat — send it back to the join flow instead
+    // of sitting on "Connecting to game..." forever. Rejections that arrive after
+    // the state is restored are shown by the reconnect overlay, not acted on here.
+    socket.on('error_message', ({ message } = {}) => {
+      if (!gameDataRef.current && roomCode) {
+        console.warn('[CHEGG] Rejected before game state:', message)
+        navigate(`/join/${roomCode}`, { replace: true })
+      }
     })
 
     socket.on('invalid_move', ({ message, reason }) => {
@@ -175,17 +240,43 @@ export default function GamePage() {
     })
 
     // ── Opponent disconnect / reconnect events (shown to the WAITING player) ──
-    socket.on('opponent_disconnected', ({ message, timeoutSeconds }) => {
-      setOpponentDisconnect({ message, timeoutSeconds })
+    // Server sends remainingMs (not absolute deadline) — clock-skew safe.
+    // We compute endTime = performance.now() + remainingMs and count down locally.
+    socket.on('opponent_disconnected', ({ message, remainingMs }) => {
+      const endTime = performance.now() + (remainingMs || 60000)
+      setOpponentDisconnect({ message, remainingMs, endTime })
     })
 
     socket.on('opponent_reconnected', () => {
       setOpponentDisconnect(null)
     })
 
-    socket.on('abandon_win', () => {
-      setWinData({ winner: 'You', loser: 'Opponent', winnerRole: yourRoleRef.current })
-      setOpponentDisconnect(null)
+    // ── Rematch events ──
+    socket.on('rematch_received', ({ fromUsername }) => {
+      setRematch({ state: 'incoming', fromName: fromUsername || 'Your opponent', notice: '' })
+    })
+
+    socket.on('rematch_declined', ({ message }) => {
+      setRematch({ state: 'blocked', fromName: '', notice: message || 'Rematch declined' })
+    })
+
+    socket.on('rematch_start', () => {
+      // Same room, fresh deck phase — keep the room code and player token so the
+      // deck builder can rejoin the room and both players can confirm again.
+      sessionStorage.removeItem('chegg_game_data')
+      localStorage.removeItem('chegg_rejoin_token')
+      setWinData(null)
+      setRematch({ state: 'idle', fromName: '', notice: '' })
+      clearSelections()
+      navigate('/deck')
+    })
+
+    socket.on('opponent_left', ({ message }) => {
+      setRematch({
+        state: 'blocked',
+        fromName: '',
+        notice: message || 'Your opponent left the room.',
+      })
     })
 
     // ── Self disconnect/reconnect (shown to the DISCONNECTED player) ──
@@ -196,6 +287,8 @@ export default function GamePage() {
     })
 
     return () => {
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
       socket.off('game_start')
       socket.off('board_update')
       socket.off('mana_update')
@@ -205,15 +298,23 @@ export default function GamePage() {
       socket.off('turn_change')
       socket.off('valid_moves')
       socket.off('game_over')
+      socket.off('game_abandoned')
+      socket.off('room_expired')
+      socket.off('game_error')
+      socket.off('error_message')
       socket.off('invalid_move')
       socket.off('opponent_disconnected')
       socket.off('opponent_reconnected')
-      socket.off('abandon_win')
+      socket.off('rematch_received')
+      socket.off('rematch_declined')
+      socket.off('rematch_start')
+      socket.off('opponent_left')
       socket.off('disconnect')
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyGameStart(data) {
+    gameDataRef.current = data
     setGameData(data)
     setBoardState(data.boardState || {})
     setYourRole(data.yourRole)
@@ -358,32 +459,35 @@ export default function GamePage() {
   }
 
   // ── Win / Rematch / Leave ──
+  // Rematch is negotiated with the opponent: request → they accept/decline.
   const handleRematch = () => {
-    setWinData(null)
-    clearSelections()
-    sessionStorage.removeItem('chegg_game_data')
-    localStorage.removeItem('chegg_room_code')
-    sessionStorage.removeItem('chegg_username')
-    sessionStorage.removeItem('chegg_player_token')
-    sessionStorage.removeItem('chegg_host_token')
-    sessionStorage.removeItem('chegg_guest_link')
-    navigate('/deck')
+    if (rematch.state !== 'idle') return
+    socket.emit('rematch_request')
+    setRematch({ state: 'requested', fromName: '', notice: '' })
+  }
+
+  const handleAcceptRematch = () => {
+    socket.emit('rematch_accept')
+    setRematch({ state: 'requested', fromName: '', notice: '' })
+  }
+
+  const handleDeclineRematch = () => {
+    socket.emit('rematch_decline')
+    setRematch({ state: 'idle', fromName: '', notice: '' })
   }
 
   const handleLeave = () => {
     sessionStorage.removeItem('chegg_game_data')
     localStorage.removeItem('chegg_room_code')
+    localStorage.removeItem('chegg_rejoin_token')
     sessionStorage.removeItem('chegg_username')
     sessionStorage.removeItem('chegg_player_token')
-    sessionStorage.removeItem('chegg_host_token')
     sessionStorage.removeItem('chegg_guest_link')
     socket.disconnect()
     navigate('/')
   }
 
   // ── Derived values ──
-  const yourUsername = yourRole === 'host' ? hostUsername : guestUsername
-  const opponentUsername = yourRole === 'host' ? guestUsername : hostUsername
   const isYourTurn = currentTurn === yourRole
 
   // For host: opponent is left (blue), you are right (red) — actually per spec:
@@ -409,20 +513,22 @@ export default function GamePage() {
     side: 'right',
   }
 
-   if (!gameData) {
-     return (
-       <div className="gamepage-loading">
-         <span className="font-label">Connecting to game...</span>
-       </div>
-     )
-   }
-
    if (roomNotFound) {
      return (
        <div className="gamepage-error">
          <h2>Room not found or expired</h2>
          <p>The room you are looking for does not exist or has been deleted.</p>
          <button onClick={() => navigate('/')}>Return to Home</button>
+       </div>
+     )
+   }
+
+   // A late reconnect can receive game_over with no game_start (e.g. the
+   // forfeit clock already expired) — show the result instead of loading forever.
+   if (!gameData && !winData) {
+     return (
+       <div className="gamepage-loading">
+         <span className="font-label">{isConnecting ? 'Reconnecting…' : 'Connecting to game...'}</span>
        </div>
      )
    }
@@ -541,7 +647,7 @@ export default function GamePage() {
       {opponentDisconnect && !winData && (
         <OpponentDisconnectBanner
           message={opponentDisconnect.message}
-          timeoutSeconds={opponentDisconnect.timeoutSeconds}
+          endTime={opponentDisconnect.endTime}
         />
       )}
 
@@ -552,10 +658,15 @@ export default function GamePage() {
 
       {winData && (
         <WinScreen
-          winnerUsername={winData.winner}
-          yourUsername={yourUsername}
+          youWon={winData.youWon}
+          winnerUsername={winData.winnerUsername}
           onRematch={handleRematch}
           onLeave={handleLeave}
+          rematchState={rematch.state}
+          incomingName={rematch.fromName}
+          notice={rematch.notice}
+          onAcceptRematch={handleAcceptRematch}
+          onDeclineRematch={handleDeclineRematch}
         />
       )}
     </div>

@@ -14,10 +14,24 @@ You can play two ways:
 
 ## Tech stack
 
-- **Frontend:** Next.js, deployed on Vercel
-- **Backend:** Node.js + Socket.io for real-time game state sync, deployed on Render
-- **Database:** MongoDB
+- **Frontend:** React + Vite, deployed on Vercel
+- **Backend:** Node.js + Express + Socket.io for real-time game state sync, deployed on Railway
+- **Database:** MongoDB Atlas
 - **AI opponent:** Minimax with Alpha-Beta pruning (Hard mode), running in a Web Worker
+
+## ⚠️ SINGLE-INSTANCE REQUIREMENT (Critical)
+
+The backend **MUST run exactly ONE instance** (replica count = 1 on Railway/Render/Kubernetes).
+
+**Why:** Game state and forfeit timers live in this process's memory. Running multiple instances will cause:
+- Forfeit timers to fire on only one instance, leaving others stale
+- Rejoin on another instance to fail (no in-memory gameState)
+- Race conditions on finishGame()
+
+Do NOT add Redis or other coordination — configure your host for 1 replica.
+
+On startup the server logs:  
+`[SINGLE-INSTANCE] CHEGG server MUST run with exactly 1 replica/process. Multiple instances will break forfeit timers and reconnection.`
 
 ## Known issues
 

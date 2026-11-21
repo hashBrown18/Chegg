@@ -613,8 +613,8 @@ export default function SingleplayerPage() {
       {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
       {winData && (
         <WinScreen
+          youWon={winData.winner === 'You'}
           winnerUsername={winData.winner}
-          yourUsername="You"
           onRematch={handleRematch}
           onLeave={handleLeave}
         />
