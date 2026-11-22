@@ -49,7 +49,7 @@ function freePort(port) {
 
 function spawnLogged(name, command, args, options) {
   const log = fs.openSync(path.join(TMP, `${name}.log`), 'w');
-  const child = spawn(command, args, { ...options, stdio: ['ignore', log, log] });
+  const child = spawn(command, args, { ...options, detached: true, stdio: ['ignore', log, log] });
   child.on('exit', (code) => {
     if (code !== 0 && code !== null) console.error(`[e2e] ${name} exited with ${code}`);
   });
@@ -82,5 +82,4 @@ module.exports = async () => {
   await waitForPort(CLIENT_PORT);
 
   fs.writeFileSync(STATE, JSON.stringify({ server: server.pid, client: client.pid }));
-  process.env.CHEGG_E2E_STACK = STATE;
 };
