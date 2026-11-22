@@ -5,7 +5,7 @@ import { getOrCreatePlayerId } from '../playerId.js'
 import BackgroundPaths from '../components/Lobby/BackgroundPaths.jsx'
 import LiquidGlassCard from '../components/ui/LiquidGlassCard.jsx'
 import Loader from '../components/ui/Loader.jsx'
-import { setRoomCode as saveRoomCode, setRejoinToken as saveRejoinToken } from '../roomSession.js'
+import { setRoomSession } from '../roomSession.js'
 import './LobbyPage.css'
 
 /**
@@ -80,11 +80,11 @@ export default function LobbyPage({ mode }) {
     socket.on('room_created', ({ roomCode, guestLink, rejoinToken }) => {
       const finalCode = (roomCode || '').toLowerCase()
       console.log('[CHEGG] room_created:', finalCode, 'socket.id=', socket.id)
-      saveRoomCode(finalCode) // per-tab, so two tabs are two players
+      // Per-tab identity; the localStorage fallback is keyed by room + role
+      // so a second player in the same browser cannot overwrite this one.
+      setRoomSession(finalCode, 'host', rejoinToken)
       localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
-      // Store secure rejoin token for auto-reconnect
-      saveRejoinToken(rejoinToken)
       // Store the share link (room code only — the guest mints their own token)
       if (guestLink) {
         sessionStorage.setItem('chegg_guest_link', guestLink)
@@ -105,11 +105,11 @@ export default function LobbyPage({ mode }) {
     socket.on('room_joined', ({ roomCode, opponentUsername, rejoinToken }) => {
       const finalCode = (roomCode || '').toLowerCase()
       console.log('[CHEGG] room_joined:', finalCode, 'socket.id=', socket.id)
-      saveRoomCode(finalCode) // per-tab, so two tabs are two players
+      // Per-tab identity; the localStorage fallback is keyed by room + role
+      // so a second player in the same browser cannot overwrite this one.
+      setRoomSession(finalCode, 'guest', rejoinToken)
       localStorage.setItem('chegg_username', usernameRef.current.trim())
       localStorage.setItem('chegg_player_id', getOrCreatePlayerId())
-      // Store secure rejoin token for auto-reconnect
-      saveRejoinToken(rejoinToken)
       setStatus(`Joining room ${finalCode}... Heading to deck builder!`)
       setTimeout(() => navigate('/deck'), 600)
     })

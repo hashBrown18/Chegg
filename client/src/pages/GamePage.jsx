@@ -10,10 +10,10 @@
  * Background: pure black #000000 (no purple, no pattern per spec)
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import socket from '../socket.js'
 import { getOrCreatePlayerId } from '../playerId.js'
-import { getRoomCode, getRejoinToken, dropRejoinToken, dropRoomSession } from '../roomSession.js'
+import { getRoomCode, getRole, getRejoinToken, dropRejoinToken, dropRoomSession } from '../roomSession.js'
 
 import Board from '../components/Board/Board.jsx'
 import PlayerPanel from '../components/GameUI/PlayerPanel.jsx'
@@ -32,11 +32,14 @@ export default function GamePage() {
   const playerId = localStorage.getItem('chegg_player_id') || getOrCreatePlayerId()
   const [roomNotFound, setRoomNotFound] = useState(false)
 
-  // Secure rejoin token (localStorage only — never in the URL, never shared).
-  // The room code comes from the URL when present, otherwise from localStorage
-  // so the static /game route still knows which room to rejoin.
-  const rejoinToken = getRejoinToken()
+  // Secure rejoin token — never in the URL, never shared. The room code comes
+  // from the URL when present, otherwise from the stored session. The role is
+  // per tab, and only falls back to ?role= for a tab that was closed and
+  // reopened, so each player reads their own token out of the shared browser.
+  const [searchParams] = useSearchParams()
   const roomCode = roomId || getRoomCode()
+  const role = getRole() || searchParams.get('role') || ''
+  const rejoinToken = getRejoinToken(roomCode, role)
   const username = sessionStorage.getItem('chegg_username') || ''
 
   useEffect(() => {
@@ -265,7 +268,7 @@ export default function GamePage() {
       // Same room, fresh deck phase — keep the room code and player token so the
       // deck builder can rejoin the room and both players can confirm again.
       sessionStorage.removeItem('chegg_game_data')
-      dropRejoinToken()
+      dropRejoinToken(roomCode, yourRoleRef.current || role)
       setWinData(null)
       setRematch({ state: 'idle', fromName: '', notice: '' })
       clearSelections()
@@ -479,7 +482,7 @@ export default function GamePage() {
 
   const handleLeave = () => {
     sessionStorage.removeItem('chegg_game_data')
-    dropRoomSession()
+    dropRoomSession(roomCode, yourRoleRef.current || role)
     sessionStorage.removeItem('chegg_username')
     sessionStorage.removeItem('chegg_player_token')
     sessionStorage.removeItem('chegg_guest_link')

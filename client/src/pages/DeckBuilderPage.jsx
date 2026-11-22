@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import socket from '../socket.js'
 import { getOrCreatePlayerId } from '../playerId.js'
-import { getRoomCode, getRejoinToken } from '../roomSession.js'
+import { getRoomCode, getRole, getRejoinToken } from '../roomSession.js'
 import BackgroundSVG from '../components/BackgroundSVG.jsx'
 import MinionPopup from '../components/DeckBuilder/MinionPopup.jsx'
 import RulesPanel from '../components/GameUI/RulesPanel.jsx'
@@ -144,7 +144,9 @@ export default function DeckBuilderPage() {
       const roomCode = getRoomCode()
       console.log('[DECK] Navigating to game — roomCode:', roomCode)
       if (roomCode) {
-        navigate(`/game/${roomCode}`)
+        // The role in the URL lets a reopened tab find its own token in the
+        // localStorage fallback instead of guessing (or taking the other seat).
+        navigate(`/game/${roomCode}?role=${data.yourRole}`)
       } else {
         navigate('/game')
       }
@@ -170,7 +172,7 @@ export default function DeckBuilderPage() {
     // Rejoin so the server keeps this socket in the room (and resumes waiting /
     // sends game_start if the match already began).
     const roomCode = getRoomCode()
-    const rejoinToken = getRejoinToken()
+    const rejoinToken = getRejoinToken(roomCode, getRole())
     if (roomCode && rejoinToken) {
       console.log('[DECK] Rejoining room', roomCode, 'socket.id=', socket.id)
       socket.emit('rejoin_game', { roomCode, rejoinToken, playerId: getOrCreatePlayerId() })

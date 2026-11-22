@@ -61,6 +61,31 @@ test('two tabs of one browser: both players confirm decks and reach the game', a
   }
 });
 
+test('reopened host tab keeps the host seat while the guest is still playing', async ({ browser }) => {
+  const context = await browser.newContext(); // shared localStorage
+  const host = await context.newPage();
+  const guest = await context.newPage();
+  try {
+    const roomCode = await createRoom(host, 'Alice');
+    await joinRoom(guest, 'Bob', roomCode);
+    await confirmDeck(host);
+    await confirmDeck(guest);
+    await expectGame(host, 'host');
+    await expectGame(guest, 'guest');
+
+    const hostUrl = host.url();
+    await host.close(); // sessionStorage dies with the closed tab
+
+    // The guest's join overwrote the plain shared localStorage entry, but the
+    // per-room/per-role fallback still has the host token.
+    const reopened = await context.newPage();
+    await reopened.goto(hostUrl);
+    await expectGame(reopened, 'host');
+  } finally {
+    await context.close();
+  }
+});
+
 test('two separate browsers: both players confirm decks and reach the game', async ({ browser }) => {
   const hostContext = await browser.newContext();
   const guestContext = await browser.newContext();

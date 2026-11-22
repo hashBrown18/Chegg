@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import socket from '../../socket.js'
-import { getRoomCode, getRejoinToken } from '../../roomSession.js'
+import { getRoomCode, getRole, getRejoinToken } from '../../roomSession.js'
 import './ReconnectOverlay.css'
 
 const MAX_RETRIES   = 10
@@ -51,10 +51,10 @@ export default function ReconnectOverlay({ onGiveUp }) {
 
     function emitReconnectAttempt() {
       try {
-        // Identity is the private rejoin token in localStorage — username and
-        // playerId are metadata only and cannot claim a seat on their own.
+        // Identity is the private rejoin token for this tab's seat — username
+        // and playerId are metadata only and cannot claim a seat on their own.
         const roomCode = getRoomCode()
-        const rejoinToken = getRejoinToken()
+        const rejoinToken = getRejoinToken(roomCode, getRole())
         const playerId = localStorage.getItem('chegg_player_id')
         if (!roomCode || !rejoinToken) {
           setPhase('failed')
