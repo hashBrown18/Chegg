@@ -401,4 +401,6 @@ module.exports = registerRoomHandlers;
 module.exports.findRoom = findRoom;
 // Shared so gameHandlers can persist the pending rematch on either store.
 module.exports.saveRoom = saveRoom;
+// Shared so a rematch can rotate both players' secrets.
+module.exports.generateRejoinToken = generateRejoinToken;
 

@@ -7,7 +7,7 @@ const { calculateValidSquares, cellKey, calcEndermanTeleportTargets, buildOccupa
   getIronGolemSweepTargets, getWitherSplashTargets } = require('../game/MovementCalculator');
 const { getAttackManaCost, MINION_BY_ID, rowToIndex } = require('../game/MinionLogic');
 const TurnManager = require('../game/TurnManager');
-const { findRoom, saveRoom } = require('./roomHandlers');
+const { findRoom, saveRoom, generateRejoinToken } = require('./roomHandlers');
 const { finishGame } = require('./gameOver');
 
 function registerGameHandlers(io, socket, activeGames) {
@@ -670,11 +670,21 @@ async function startRematch(io, roomCode, room, activeGames) {
     room.gameState.status = 'deckbuilding';
     room.gameState.winnerRole = '';
   }
+
+  // Rotate both secrets: the finished match's tokens must not open the new one.
+  // Each player is told only their own fresh token.
+  const hostToken = generateRejoinToken();
+  const guestToken = generateRejoinToken();
+  if (room.host) room.host.rejoinToken = hostToken;
+  if (room.guest) room.guest.rejoinToken = guestToken;
   await saveRoom(room);
 
   activeGames.delete(roomCode);
 
-  io.to(roomCode).emit('rematch_start', { roomCode });
+  const hostSocket = getPlayerSocket(io, roomCode, 'host');
+  const guestSocket = getPlayerSocket(io, roomCode, 'guest');
+  if (hostSocket) hostSocket.emit('rematch_start', { roomCode, rejoinToken: hostToken });
+  if (guestSocket) guestSocket.emit('rematch_start', { roomCode, rejoinToken: guestToken });
   console.log(`[REMATCH] Room ${roomCode} reset for a new match`);
 }
 

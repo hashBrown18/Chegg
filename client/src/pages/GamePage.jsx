@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import socket from '../socket.js'
 import { getOrCreatePlayerId } from '../playerId.js'
-import { getRoomCode, getRole, getRejoinToken, dropRejoinToken, dropRoomSession } from '../roomSession.js'
+import { getRoomCode, getRole, getRejoinToken, setRoomSession, dropRoomSession } from '../roomSession.js'
 
 import Board from '../components/Board/Board.jsx'
 import PlayerPanel from '../components/GameUI/PlayerPanel.jsx'
@@ -267,11 +267,13 @@ export default function GamePage() {
       setRematch({ state: 'blocked', fromName: '', notice: message || 'Rematch declined' })
     })
 
-    socket.on('rematch_start', () => {
-      // Same room, fresh deck phase — keep the room code and player token so the
-      // deck builder can rejoin the room and both players can confirm again.
+    socket.on('rematch_start', ({ rejoinToken } = {}) => {
+      // Same room, fresh deck phase. The server rotated this player's rejoin
+      // token, so store the new one before navigating or a refresh mid-rematch
+      // would be rejected with the finished match's token.
       sessionStorage.removeItem('chegg_game_data')
-      dropRejoinToken(roomCode, yourRoleRef.current || role)
+      const myRole = yourRoleRef.current || role
+      if (rejoinToken && myRole) setRoomSession(roomCode, myRole, rejoinToken)
       setWinData(null)
       setRematch({ state: 'idle', fromName: '', notice: '' })
       clearSelections()

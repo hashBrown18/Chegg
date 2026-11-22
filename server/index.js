@@ -97,4 +97,4 @@ mongoose
     });
   });
 
-module.exports = { app, server, io };
+module.exports = { app, server, io, activeGames };

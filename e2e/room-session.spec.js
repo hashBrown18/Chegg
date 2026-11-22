@@ -48,6 +48,17 @@ async function playThrough(hostPage, guestPage) {
 
   await expectGame(hostPage, 'host');
   await expectGame(guestPage, 'guest');
+  return roomCode;
+}
+
+// Harness-only endpoint in e2e/server.js — ends the match without replaying it.
+async function endGame(roomCode, winnerRole) {
+  const res = await fetch('http://127.0.0.1:5680/end-game', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ roomCode, winnerRole }),
+  });
+  expect(res.status).toBe(200);
 }
 
 test('two tabs of one browser: both players confirm decks and reach the game', async ({ browser }) => {
@@ -96,5 +107,38 @@ test('two separate browsers: both players confirm decks and reach the game', asy
   } finally {
     await hostContext.close();
     await guestContext.close();
+  }
+});
+
+test('rematch: both tabs refresh mid-rematch and rejoin with their roles', async ({ browser }) => {
+  const context = await browser.newContext(); // shared localStorage
+  const host = await context.newPage();
+  const guest = await context.newPage();
+  try {
+    const roomCode = await playThrough(host, guest);
+
+    await endGame(roomCode, 'host');
+    await expect(host.locator('.win-screen')).toBeVisible({ timeout: 15_000 });
+    await expect(guest.locator('.win-screen')).toBeVisible({ timeout: 15_000 });
+
+    // Host asks, guest accepts.
+    await host.locator('.win-rematch-btn').click();
+    await expect(guest.locator('.win-request-text')).toContainText('wants a rematch', { timeout: 15_000 });
+    await guest.locator('.win-rematch-btn').click();
+
+    await expect(host).toHaveURL(/\/deck/, { timeout: 15_000 });
+    await expect(guest).toHaveURL(/\/deck/, { timeout: 15_000 });
+
+    // Refresh both during the rematch deck phase — the rotated token must work.
+    await Promise.all([host.reload(), guest.reload()]);
+    await expect(host.locator('.deck-counter')).toBeVisible({ timeout: 15_000 });
+    await expect(guest.locator('.deck-counter')).toBeVisible({ timeout: 15_000 });
+
+    await confirmDeck(host);
+    await confirmDeck(guest);
+    await expectGame(host, 'host');
+    await expectGame(guest, 'guest');
+  } finally {
+    await context.close();
   }
 });
