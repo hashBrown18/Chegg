@@ -158,6 +158,12 @@ export default function DeckBuilderPage() {
       setWaiting(false)
     })
 
+    // Duplicated tab: another live tab already holds this seat.
+    socket.on('seat_in_use', ({ message }) => {
+      setError(message)
+      setWaiting(false)
+    })
+
     // Server-side deck validation failures (e.g. unknown card id) must not leave
     // the player staring at "Waiting for opponent..." forever.
     socket.on('deck_error', ({ message }) => {
@@ -182,6 +188,7 @@ export default function DeckBuilderPage() {
       socket.off('waiting_for_opponent')
       socket.off('game_start')
       socket.off('error_message')
+      socket.off('seat_in_use')
       socket.off('deck_error')
     }
   }, [navigate])

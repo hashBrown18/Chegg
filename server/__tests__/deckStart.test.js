@@ -162,3 +162,30 @@ test('a socket that already holds a seat cannot rejoin as the other player', asy
   expect(guestStart.payload.yourRole).toBe('guest');
   expect((await Room.findOne({ roomCode })).gameState.status).toBe('playing');
 });
+
+/**
+ * Regression: a duplicated tab copies sessionStorage, so it presents the same
+ * rejoin token as the live tab. Taking the seat would silently move the game
+ * out from under the tab the player is actually using, so the duplicate is
+ * rejected with an explicit event instead of freezing.
+ */
+test('a second live socket cannot take a seat that is already held', async () => {
+  const io = makeIo();
+
+  const host = makeSocket(io, 'host-sock');
+  await host.handlers.create_room({ username: 'Alice', playerId: 'id-alice' });
+  const created = host.emitted.find((e) => e.event === 'room_created');
+  const roomCode = created.payload.roomCode;
+
+  const duplicate = makeSocket(io, 'duplicate-sock');
+  await duplicate.handlers.rejoin_game({ roomCode, rejoinToken: created.payload.rejoinToken });
+
+  const rejected = duplicate.emitted.find((e) => e.event === 'seat_in_use');
+  expect(rejected).toBeDefined();
+  expect(rejected.payload.message).toMatch(/another tab/);
+  expect(duplicate.playerRole).toBeUndefined();
+
+  const room = await Room.findOne({ roomCode });
+  expect(room.host.socketId).toBe('host-sock');
+  expect(host.emitted.some((e) => e.event === 'seat_in_use')).toBe(false);
+});

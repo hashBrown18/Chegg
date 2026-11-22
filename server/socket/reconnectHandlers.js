@@ -165,6 +165,19 @@ function registerReconnectHandlers(io, socket, activeGames) {
         return;
       }
 
+      // A live socket already in this seat wins. A duplicated tab copies
+      // sessionStorage, so it presents the same token — accepting it would
+      // silently move the seat out from under the tab the player is using.
+      const holderId = playerRole === 'host' ? room.host.socketId : room.guest.socketId;
+      const holder = holderId && holderId !== socket.id ? io.sockets.sockets.get(holderId) : null;
+      if (holder && holder.connected !== false) {
+        socket.emit('seat_in_use', {
+          role: playerRole,
+          message: 'This seat is open in another tab. Close the other tab or use a different browser to play it.',
+        });
+        return;
+      }
+
       const roomStatus = (room.gameState && room.gameState.status) || 'waiting';
 
       // Finished games cannot be resumed — hand the stored result to the player

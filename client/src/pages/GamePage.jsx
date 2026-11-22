@@ -31,6 +31,7 @@ export default function GamePage() {
   const { roomId } = useParams()
   const playerId = localStorage.getItem('chegg_player_id') || getOrCreatePlayerId()
   const [roomNotFound, setRoomNotFound] = useState(false)
+  const [seatInUse, setSeatInUse] = useState('')
 
   // Secure rejoin token — never in the URL, never shared. The room code comes
   // from the URL when present, otherwise from the stored session. The role is
@@ -226,6 +227,8 @@ export default function GamePage() {
 
     socket.on('room_expired', () => setRoomNotFound(true))
 
+    socket.on('seat_in_use', ({ message }) => setSeatInUse(message))
+
     socket.on('game_error', () => setRoomNotFound(true))
 
     // A rejected rejoin (bad/missing token) before the game state arrives means
@@ -304,6 +307,7 @@ export default function GamePage() {
       socket.off('game_over')
       socket.off('game_abandoned')
       socket.off('room_expired')
+      socket.off('seat_in_use')
       socket.off('game_error')
       socket.off('error_message')
       socket.off('invalid_move')
@@ -515,6 +519,16 @@ export default function GamePage() {
     isActive: currentTurn === 'guest',
     side: 'right',
   }
+
+   if (seatInUse) {
+     return (
+       <div className="gamepage-error">
+         <h2>This seat is open in another tab</h2>
+         <p>{seatInUse}</p>
+         <button onClick={() => navigate('/')}>Return to Home</button>
+       </div>
+     )
+   }
 
    if (roomNotFound) {
      return (

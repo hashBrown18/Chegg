@@ -83,6 +83,12 @@ export default function ReconnectOverlay({ onGiveUp }) {
       setErrorMsg(message || 'Reconnection rejected by server.')
     }
 
+    // Duplicated tab: another live tab already holds this seat.
+    function onSeatInUse({ message }) {
+      setPhase('failed')
+      setErrorMsg(message || 'This seat is open in another tab.')
+    }
+
     function scheduleRetry() {
       retryTimerRef.current = setTimeout(attemptReconnect, RETRY_DELAY)
     }
@@ -90,6 +96,7 @@ export default function ReconnectOverlay({ onGiveUp }) {
     socket.on('connect',       onConnect)
     socket.on('connect_error', onError)
     socket.on('error_message', onErrorMessage)
+    socket.on('seat_in_use', onSeatInUse)
 
     // Kick off the first attempt immediately
     attemptReconnect()
@@ -99,6 +106,7 @@ export default function ReconnectOverlay({ onGiveUp }) {
       socket.off('connect',       onConnect)
       socket.off('connect_error', onError)
       socket.off('error_message', onErrorMessage)
+      socket.off('seat_in_use',   onSeatInUse)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
