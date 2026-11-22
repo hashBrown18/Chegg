@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import socket from '../socket.js'
 import { getOrCreatePlayerId } from '../playerId.js'
+import { getRoomCode, getRejoinToken } from '../roomSession.js'
 import BackgroundSVG from '../components/BackgroundSVG.jsx'
 import MinionPopup from '../components/DeckBuilder/MinionPopup.jsx'
 import RulesPanel from '../components/GameUI/RulesPanel.jsx'
@@ -140,7 +141,7 @@ export default function DeckBuilderPage() {
       const username = data.yourRole === 'host' ? data.hostUsername : data.guestUsername
       if (username) sessionStorage.setItem('chegg_username', username)
       // Room-code-only game URL — identity comes from the stored rejoin token
-      const roomCode = localStorage.getItem('chegg_room_code') || ''
+      const roomCode = getRoomCode()
       console.log('[DECK] Navigating to game — roomCode:', roomCode)
       if (roomCode) {
         navigate(`/game/${roomCode}`)
@@ -168,8 +169,8 @@ export default function DeckBuilderPage() {
     // A refresh loses the in-memory deck selection but the room still exists.
     // Rejoin so the server keeps this socket in the room (and resumes waiting /
     // sends game_start if the match already began).
-    const roomCode = localStorage.getItem('chegg_room_code') || ''
-    const rejoinToken = localStorage.getItem('chegg_rejoin_token') || ''
+    const roomCode = getRoomCode()
+    const rejoinToken = getRejoinToken()
     if (roomCode && rejoinToken) {
       console.log('[DECK] Rejoining room', roomCode, 'socket.id=', socket.id)
       socket.emit('rejoin_game', { roomCode, rejoinToken, playerId: getOrCreatePlayerId() })
@@ -201,7 +202,7 @@ export default function DeckBuilderPage() {
       console.log('[DECK] Socket down on confirm — reconnecting before emit')
       socket.connect()
     }
-    console.log('[DECK] Emitting deck_confirmed — roomCode=', localStorage.getItem('chegg_room_code'), 'socket.id=', socket.id, 'deck length=', chosen.length)
+    console.log('[DECK] Emitting deck_confirmed — roomCode=', getRoomCode(), 'socket.id=', socket.id, 'deck length=', chosen.length)
     socket.emit('deck_confirmed', { deck: chosen })
     setWaiting(true)
   }

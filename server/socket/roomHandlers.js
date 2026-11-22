@@ -295,7 +295,8 @@ function registerRoomHandlers(io, socket, activeGames) {
       // Check if both players have confirmed
       const hostReady = room.host.deck && room.host.deck.length === 15;
       const guestReady = room.guest && room.guest.deck && room.guest.deck.length === 15;
-      console.log(`[DECK] Room ${roomCode} — hostReady=${hostReady} (${room.host.deck ? room.host.deck.length : 'null'} cards), guestReady=${guestReady} (${room.guest && room.guest.deck ? room.guest.deck.length : 'null'} cards)`);
+      const roomSockets = io.sockets.adapter.rooms.get(roomCode);
+      console.log(`[DECK] Room ${roomCode} — role=${playerRole} socket=${socket.id} roomSockets=${roomSockets ? roomSockets.size : 0} — hostReady=${hostReady} (${room.host.deck ? room.host.deck.length : 'null'} cards), guestReady=${guestReady} (${room.guest && room.guest.deck ? room.guest.deck.length : 'null'} cards)`);
 
       if (playerRole === 'host' && !guestReady) {
         socket.emit('waiting_for_opponent', { message: 'Waiting for opponent to confirm deck...' });

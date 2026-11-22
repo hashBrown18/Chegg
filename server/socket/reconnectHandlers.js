@@ -154,6 +154,17 @@ function registerReconnectHandlers(io, socket, activeGames) {
         return;
       }
 
+      // A socket that already holds a seat in this room keeps it. Without this,
+      // a second tab sharing the browser's localStorage sends the other player's
+      // token, silently demotes this socket, and both tabs claim the same seat —
+      // nobody's deck ever counts and the game never starts.
+      if (socket.roomCode === code && socket.playerRole && socket.playerRole !== playerRole) {
+        socket.emit('error_message', {
+          message: 'This window already holds the other seat. Use a separate browser window to join as a second player.',
+        });
+        return;
+      }
+
       const roomStatus = (room.gameState && room.gameState.status) || 'waiting';
 
       // Finished games cannot be resumed — hand the stored result to the player

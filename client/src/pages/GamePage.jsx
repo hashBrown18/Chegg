@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import socket from '../socket.js'
 import { getOrCreatePlayerId } from '../playerId.js'
+import { getRoomCode, getRejoinToken, dropRejoinToken, dropRoomSession } from '../roomSession.js'
 
 import Board from '../components/Board/Board.jsx'
 import PlayerPanel from '../components/GameUI/PlayerPanel.jsx'
@@ -34,8 +35,8 @@ export default function GamePage() {
   // Secure rejoin token (localStorage only — never in the URL, never shared).
   // The room code comes from the URL when present, otherwise from localStorage
   // so the static /game route still knows which room to rejoin.
-  const rejoinToken = localStorage.getItem('chegg_rejoin_token') || ''
-  const roomCode = roomId || localStorage.getItem('chegg_room_code') || ''
+  const rejoinToken = getRejoinToken()
+  const roomCode = roomId || getRoomCode()
   const username = sessionStorage.getItem('chegg_username') || ''
 
   useEffect(() => {
@@ -264,7 +265,7 @@ export default function GamePage() {
       // Same room, fresh deck phase — keep the room code and player token so the
       // deck builder can rejoin the room and both players can confirm again.
       sessionStorage.removeItem('chegg_game_data')
-      localStorage.removeItem('chegg_rejoin_token')
+      dropRejoinToken()
       setWinData(null)
       setRematch({ state: 'idle', fromName: '', notice: '' })
       clearSelections()
@@ -478,8 +479,7 @@ export default function GamePage() {
 
   const handleLeave = () => {
     sessionStorage.removeItem('chegg_game_data')
-    localStorage.removeItem('chegg_room_code')
-    localStorage.removeItem('chegg_rejoin_token')
+    dropRoomSession()
     sessionStorage.removeItem('chegg_username')
     sessionStorage.removeItem('chegg_player_token')
     sessionStorage.removeItem('chegg_guest_link')
