@@ -534,7 +534,7 @@ export default function GamePage() {
    }
 
   return (
-    <div className="gamepage" data-turn={currentTurn} data-is-your-turn={isYourTurn}>
+    <div className="gamepage" data-turn={currentTurn} data-is-your-turn={isYourTurn} data-role={yourRole}>
       {/* ── Top Bar ── */}
       <header className="gamepage-topbar">
         <div className="topbar-left">

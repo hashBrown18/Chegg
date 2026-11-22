@@ -1,0 +1,13 @@
+{
+  "name": "chegg-e2e",
+  "private": true,
+  "description": "Browser end-to-end tests for CHEGG room identity",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "mongodb-memory-server": "^11.3.0"
+  }
+}
