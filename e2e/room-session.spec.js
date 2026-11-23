@@ -110,6 +110,44 @@ test('two separate browsers: both players confirm decks and reach the game', asy
   }
 });
 
+test('rematch: both players confirm decks and reach the new game without reloading', async ({ browser }) => {
+  const context = await browser.newContext(); // shared localStorage
+  const host = await context.newPage();
+  const guest = await context.newPage();
+  const logs = [];
+  host.on('console', (m) => logs.push(`host: ${m.text()}`));
+  guest.on('console', (m) => logs.push(`guest: ${m.text()}`));
+  try {
+    const roomCode = await playThrough(host, guest);
+
+    await endGame(roomCode, 'host');
+    await expect(host.locator('.win-screen')).toBeVisible({ timeout: 15_000 });
+    await expect(guest.locator('.win-screen')).toBeVisible({ timeout: 15_000 });
+
+    // Host asks, guest accepts. Neither tab is reloaded from here on.
+    await host.locator('.win-rematch-btn').click();
+    await expect(guest.locator('.win-request-text')).toContainText('wants a rematch', { timeout: 15_000 });
+    await guest.locator('.win-rematch-btn').click();
+
+    await expect(host).toHaveURL(/\/deck/, { timeout: 15_000 });
+    await expect(guest).toHaveURL(/\/deck/, { timeout: 15_000 });
+
+    await confirmDeck(host);
+    await confirmDeck(guest);
+
+    try {
+      await expectGame(host, 'host');
+      await expectGame(guest, 'guest');
+    } catch (err) {
+      const bounce = logs.filter((l) => /Rejected before game state|error_message|Invalid rejoin/i.test(l));
+      err.message += `\n--- page logs ---\n${logs.join('\n')}\n--- bounce lines ---\n${bounce.join('\n')}`;
+      throw err;
+    }
+  } finally {
+    await context.close();
+  }
+});
+
 test('rematch: both tabs refresh mid-rematch and rejoin with their roles', async ({ browser }) => {
   const context = await browser.newContext(); // shared localStorage
   const host = await context.newPage();

@@ -202,22 +202,27 @@ test('a second live socket cannot take a seat that is already held', async () =>
 });
 
 /**
- * Rematch: the finished match's rejoin tokens must stop working, both players
- * get fresh ones, and a refresh during the rematch deck phase must be able to
- * use the new token (host and guest).
+ * Rematch: a player's rejoin token must keep working across the rematch.
+ *
+ * The token is the only thing that can claim a seat, and the client learns it
+ * once (at create/join). If the server rotated it on rematch, the new secret
+ * would exist only in that one best-effort `rematch_start` event; a tab that
+ * missed it — or a deployed client that predates the store-the-new-token code —
+ * sends the old token and is rejected with "Invalid rejoin token" after the
+ * rematch deck confirm. So the seat token is stable for the room's lifetime.
  */
-test('a rematch rotates both rejoin tokens and refreshes can use the new ones', async () => {
+test('a rematch keeps both rejoin tokens valid and both players reach the new game', async () => {
   const io = makeIo();
 
   const host = makeSocket(io, 'host-sock');
   await host.handlers.create_room({ username: 'Alice', playerId: 'id-alice' });
   const created = host.emitted.find((e) => e.event === 'room_created');
   const roomCode = created.payload.roomCode;
-  const oldHostToken = created.payload.rejoinToken;
+  const hostToken = created.payload.rejoinToken;
 
   const guest = makeSocket(io, 'guest-sock');
   await guest.handlers.join_room({ username: 'Bob', roomCode, playerId: 'id-bob' });
-  const oldGuestToken = guest.emitted.find((e) => e.event === 'room_joined').payload.rejoinToken;
+  const guestToken = guest.emitted.find((e) => e.event === 'room_joined').payload.rejoinToken;
 
   await Promise.all([
     host.handlers.deck_confirmed({ deck: DECK }),
@@ -236,50 +241,71 @@ test('a rematch rotates both rejoin tokens and refreshes can use the new ones', 
   const guestStart = guest.emitted.find((e) => e.event === 'rematch_start');
   expect(hostStart).toBeDefined();
   expect(guestStart).toBeDefined();
+  expect(hostStart.payload.yourRole).toBe('host');
+  expect(guestStart.payload.yourRole).toBe('guest');
+  expect(hostStart.payload.rejoinToken).toBe(hostToken);
+  expect(guestStart.payload.rejoinToken).toBe(guestToken);
 
-  const newHostToken = hostStart.payload.rejoinToken;
-  const newGuestToken = guestStart.payload.rejoinToken;
-  expect(newHostToken).toBeTruthy();
-  expect(newGuestToken).toBeTruthy();
-  expect(newHostToken).not.toBe(oldHostToken);
-  expect(newGuestToken).not.toBe(oldGuestToken);
-  expect(newHostToken).not.toBe(newGuestToken);
-
-  // Stored, and the finished match's tokens are dead.
   const room = await Room.findOne({ roomCode });
-  expect(room.host.rejoinToken).toBe(newHostToken);
-  expect(room.guest.rejoinToken).toBe(newGuestToken);
+  expect(room.host.rejoinToken).toBe(hostToken);
+  expect(room.guest.rejoinToken).toBe(guestToken);
   expect(room.gameState.status).toBe('deckbuilding');
 
-  const oldTokenSocket = makeSocket(io, 'old-token-sock');
-  await oldTokenSocket.handlers.rejoin_game({ roomCode, rejoinToken: oldHostToken });
-  expect(oldTokenSocket.emitted.find((e) => e.event === 'error_message').payload.message)
-    .toMatch(/Invalid rejoin token/);
-
-  // Refresh during the rematch deck phase: old socket goes away, new one comes
-  // back with the freshly minted token.
+  // The tokens the clients already hold still claim their seats after the page
+  // for the finished match goes away (navigation/refresh). Nothing rotates them.
   await host.handlers.disconnect();
-  const hostReloaded = makeSocket(io, 'host-reloaded');
-  await hostReloaded.handlers.rejoin_game({ roomCode, rejoinToken: newHostToken });
-  expect(hostReloaded.playerRole).toBe('host');
-  expect(hostReloaded.emitted.find((e) => e.event === 'rejoined_lobby').payload.yourRole).toBe('host');
-
   await guest.handlers.disconnect();
-  const guestReloaded = makeSocket(io, 'guest-reloaded');
-  await guestReloaded.handlers.rejoin_game({ roomCode, rejoinToken: newGuestToken });
-  expect(guestReloaded.playerRole).toBe('guest');
-  expect(guestReloaded.emitted.find((e) => e.event === 'rejoined_lobby').payload.yourRole).toBe('guest');
 
-  const reloadedRoom = await Room.findOne({ roomCode });
-  expect(reloadedRoom.host.socketId).toBe('host-reloaded');
-  expect(reloadedRoom.guest.socketId).toBe('guest-reloaded');
+  const hostRejoin = makeSocket(io, 'host-from-old-token');
+  await hostRejoin.handlers.rejoin_game({ roomCode, rejoinToken: hostToken });
+  expect(hostRejoin.playerRole).toBe('host');
+  expect(hostRejoin.emitted.find((e) => e.event === 'rejoined_lobby').payload.yourRole).toBe('host');
+
+  const guestRejoin = makeSocket(io, 'guest-from-old-token');
+  await guestRejoin.handlers.rejoin_game({ roomCode, rejoinToken: guestToken });
+  expect(guestRejoin.playerRole).toBe('guest');
+  expect(guestRejoin.emitted.find((e) => e.event === 'rejoined_lobby').payload.yourRole).toBe('guest');
+});
+
+/**
+ * The reported rematch flow, driven exactly as the pages drive it: the two
+ * sockets that already hold the seats confirm a new 15-card deck and must both
+ * receive game_start, with no manual rejoin_game in between.
+ */
+test('both players confirm a rematch deck and reach the new game with no manual rejoin', async () => {
+  const io = makeIo();
+
+  const host = makeSocket(io, 'host-sock');
+  await host.handlers.create_room({ username: 'Alice', playerId: 'id-alice' });
+  const roomCode = host.emitted.find((e) => e.event === 'room_created').payload.roomCode;
+
+  const guest = makeSocket(io, 'guest-sock');
+  await guest.handlers.join_room({ username: 'Bob', roomCode, playerId: 'id-bob' });
 
   await Promise.all([
-    hostReloaded.handlers.deck_confirmed({ deck: DECK }),
-    guestReloaded.handlers.deck_confirmed({ deck: DECK }),
+    host.handlers.deck_confirmed({ deck: DECK }),
+    guest.handlers.deck_confirmed({ deck: DECK }),
   ]);
-  expect(hostReloaded.emitted.some((e) => e.event === 'game_start')).toBe(true);
-  expect(guestReloaded.emitted.some((e) => e.event === 'game_start')).toBe(true);
+  expect(host.emitted.some((e) => e.event === 'game_start')).toBe(true);
+
+  await finishGame(io, roomCode, io.activeGames, 'host');
+  await host.handlers.rematch_request();
+  await guest.handlers.rematch_accept();
+  expect(host.emitted.some((e) => e.event === 'rematch_start')).toBe(true);
+  expect(guest.emitted.some((e) => e.event === 'rematch_start')).toBe(true);
+
+  const hostStartsBefore = host.emitted.filter((e) => e.event === 'game_start').length;
+  const guestStartsBefore = guest.emitted.filter((e) => e.event === 'game_start').length;
+
+  await Promise.all([
+    host.handlers.deck_confirmed({ deck: DECK }),
+    guest.handlers.deck_confirmed({ deck: DECK }),
+  ]);
+
+  expect(host.emitted.filter((e) => e.event === 'game_start').length).toBe(hostStartsBefore + 1);
+  expect(guest.emitted.filter((e) => e.event === 'game_start').length).toBe(guestStartsBefore + 1);
+  expect(host.emitted.some((e) => e.event === 'error_message')).toBe(false);
+  expect(guest.emitted.some((e) => e.event === 'error_message')).toBe(false);
   expect((await Room.findOne({ roomCode })).gameState.status).toBe('playing');
 });
 

@@ -267,12 +267,13 @@ export default function GamePage() {
       setRematch({ state: 'blocked', fromName: '', notice: message || 'Rematch declined' })
     })
 
-    socket.on('rematch_start', ({ rejoinToken } = {}) => {
-      // Same room, fresh deck phase. The server rotated this player's rejoin
-      // token, so store the new one before navigating or a refresh mid-rematch
-      // would be rejected with the finished match's token.
+    socket.on('rematch_start', ({ rejoinToken, yourRole: serverRole } = {}) => {
+      // Same room, fresh deck phase. The server sends the seat token this tab
+      // already holds (it is stable across rematches) and the authoritative
+      // role, so re-store both before navigating. Even if this event is missed,
+      // the stored token stays valid.
       sessionStorage.removeItem('chegg_game_data')
-      const myRole = yourRoleRef.current || role
+      const myRole = serverRole || yourRoleRef.current || role
       if (rejoinToken && myRole) setRoomSession(roomCode, myRole, rejoinToken)
       setWinData(null)
       setRematch({ state: 'idle', fromName: '', notice: '' })

@@ -7,7 +7,7 @@ const { calculateValidSquares, cellKey, calcEndermanTeleportTargets, buildOccupa
   getIronGolemSweepTargets, getWitherSplashTargets } = require('../game/MovementCalculator');
 const { getAttackManaCost, MINION_BY_ID, rowToIndex } = require('../game/MinionLogic');
 const TurnManager = require('../game/TurnManager');
-const { findRoom, saveRoom, generateRejoinToken } = require('./roomHandlers');
+const { findRoom, saveRoom } = require('./roomHandlers');
 const { finishGame } = require('./gameOver');
 
 function registerGameHandlers(io, socket, activeGames) {
@@ -671,20 +671,21 @@ async function startRematch(io, roomCode, room, activeGames) {
     room.gameState.winnerRole = '';
   }
 
-  // Rotate both secrets: the finished match's tokens must not open the new one.
-  // Each player is told only their own fresh token.
-  const hostToken = generateRejoinToken();
-  const guestToken = generateRejoinToken();
-  if (room.host) room.host.rejoinToken = hostToken;
-  if (room.guest) room.guest.rejoinToken = guestToken;
   await saveRoom(room);
 
   activeGames.delete(roomCode);
 
+  // The rejoin token is a seat credential for the room, not a per-match nonce.
+  // Rotating it here would make the only copy of the new secret a one-shot
+  // socket event, so a client that missed it (or a deployed bundle that does
+  // not store it) would be rejected with "Invalid rejoin token" after the
+  // rematch deck confirm. Keep the token the client already holds.
+  const hostToken = (room.host && room.host.rejoinToken) || '';
+  const guestToken = (room.guest && room.guest.rejoinToken) || '';
   const hostSocket = getPlayerSocket(io, roomCode, 'host');
   const guestSocket = getPlayerSocket(io, roomCode, 'guest');
-  if (hostSocket) hostSocket.emit('rematch_start', { roomCode, rejoinToken: hostToken });
-  if (guestSocket) guestSocket.emit('rematch_start', { roomCode, rejoinToken: guestToken });
+  if (hostSocket) hostSocket.emit('rematch_start', { roomCode, yourRole: 'host', rejoinToken: hostToken });
+  if (guestSocket) guestSocket.emit('rematch_start', { roomCode, yourRole: 'guest', rejoinToken: guestToken });
   console.log(`[REMATCH] Room ${roomCode} reset for a new match`);
 }
 
