@@ -30,6 +30,9 @@ The backend **MUST run exactly ONE instance** (replica count = 1 on Railway/Rend
 
 Do NOT add Redis or other coordination — configure your host for 1 replica.
 
+Run exactly one instance on Railway (replica count = 1). Multiple replicas break
+forfeit timers, reconnection, and the atomic game-finish claim.
+
 On startup the server logs:  
 `[SINGLE-INSTANCE] CHEGG server MUST run with exactly 1 replica/process. Multiple instances will break forfeit timers and reconnection.`
 

@@ -124,6 +124,16 @@ function buildGameOverPayload(room, winnerRole) {
  * and emits the result. Every other caller returns false without emitting.
  *
  * winnerRole === null abandons the game with no winner (both players gone).
+ *
+ * SINGLE-INSTANCE: The in-memory `activeGames` Map and the `forfeitTimers` Map
+ * exist only on this server process. Running multiple replicas (Railway
+ * replicas > 1, K8s replicas > 1) breaks this because:
+ *   - A forfeit timer may fire on one replica but the gameState lives on another
+ *   - A rejoin may hit a replica that has no in-memory gameState for the room
+ *   - finishGame() races across replicas: the atomic Mongo claim prevents double
+ *     emission, but the winner replica clears only its local timers; the other
+ *     replica's timers leak and may fire later on a finished room.
+ * Configure your host for exactly 1 replica/process.
  */
 async function finishGame(io, roomCode, activeGames, winnerRole) {
   const gameState = activeGames.get(roomCode);
@@ -216,6 +226,14 @@ async function clearForfeitState(roomCode) {
 /**
  * Re-arm forfeit timers on server boot for rooms that were mid-forfeit.
  * Called once at startup after MongoDB connects.
+ *
+ * SINGLE-INSTANCE: This reads `forfeitDeadline` from MongoDB and reconstructs
+ * in-process `forfeitTimers`. If the server runs multiple replicas, every
+ * replica will re-arm its own copy of the timers — the forfeit clock runs in
+ * parallel on each, and the first to fire calls finishGame(). The atomic
+ * Mongo claim in finishGame() prevents double emission, but the other
+ * replicas' timers will fire later and try to finish an already-finished game.
+ * Run exactly 1 replica.
  */
 async function rearmForfeitTimers(io, activeGames, onExpire) {
   if (mongoose.connection.readyState !== 1) return;
@@ -289,6 +307,13 @@ async function rearmForfeitTimers(io, activeGames, onExpire) {
  * Exported separately from startSweep so it can be tested directly. Expiry goes
  * through finishGame(), whose atomic claim means a sweep pass and the boot
  * re-arm can never both finish (and both broadcast) the same game.
+ *
+ * SINGLE-INSTANCE: The sweep runs only on this process. With multiple replicas
+ * the sweep would run concurrently on each, all racing finishGame() on the
+ * same rooms. The Mongo atomic claim prevents double emission, but all replicas
+ * clear only their local `forfeitTimers`; stale timers on the other replicas
+ * leak and may fire on already-finished rooms.
+ * Run exactly 1 replica.
  */
 async function sweepOnce(io, activeGames) {
   const rooms = await Room.find({ 'gameState.status': 'playing' });

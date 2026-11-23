@@ -59,6 +59,12 @@ function generateRejoinToken() {
   return crypto.randomBytes(24).toString('hex');
 }
 
+// Deck-flow tracing is opt-in: these lines carry player/socket ids and used to
+// dump whole room documents (including rejoin tokens) into production logs.
+const DEBUG_DECK = process.env.DEBUG_DECK === '1';
+function dlog(...args) { if (DEBUG_DECK) console.log('[DECK]', ...args); }
+function derr(...args) { if (DEBUG_DECK) console.error('[DECK]', ...args); }
+
 
 
 function registerRoomHandlers(io, socket, activeGames) {
@@ -222,10 +228,10 @@ function registerRoomHandlers(io, socket, activeGames) {
   socket.on('deck_confirmed', async ({ deck }) => {
     try {
       const { roomCode, playerRole } = socket;
-      console.log(`[DECK] deck_confirmed received from ${socket.username || '?'} (${playerRole || '?'}) in room ${roomCode || '?'} — socket.id=${socket.id} playerId=${socket.playerId || '?'} deckSize=${Array.isArray(deck) ? deck.length : 'invalid'}`);
+      dlog(`deck_confirmed received from ${socket.username || '?'} (${playerRole || '?'}) in room ${roomCode || '?'} — socket.id=${socket.id} playerId=${socket.playerId || '?'} deckSize=${Array.isArray(deck) ? deck.length : 'invalid'}`);
 
       if (!roomCode || !playerRole) {
-        console.error(`[DECK] Rejected: roomCode=${roomCode}, playerRole=${playerRole}`);
+        derr(`Rejected: roomCode=${roomCode}, playerRole=${playerRole}`);
         socket.emit('error_message', { message: 'Not in a room' });
         return;
       }
@@ -249,7 +255,7 @@ function registerRoomHandlers(io, socket, activeGames) {
       // Validate room exists before attempting atomic update
       const existingRoom = await findRoom(roomCode);
       if (!existingRoom) {
-        console.error(`[DECK] Room ${roomCode} not found`);
+        derr(`Room ${roomCode} not found`);
         socket.emit('error_message', { message: 'Room not found' });
         return;
       }
@@ -275,7 +281,8 @@ function registerRoomHandlers(io, socket, activeGames) {
         // returns the pre-update doc and the identity map stays stale, so any
         // subsequent findOne() would serve cached old data.
         room = await Room.findOneAndUpdate({ roomCode }, { $set: setFields }, { new: true });
-        console.log(`[DECK] After ${playerRole} save — room.host: ${JSON.stringify(room.host)}, room.guest: ${JSON.stringify(room.guest)}`);
+        // Never dump the room: it holds both players' rejoin tokens.
+        dlog(`After ${playerRole} save — hostReady=${room.host.deck ? room.host.deck.length : 'null'}, guestReady=${room.guest && room.guest.deck ? room.guest.deck.length : 'null'}`);
       } else {
         // In-memory: same reference, direct mutation is safe
         if (playerRole === 'host') {
@@ -289,14 +296,14 @@ function registerRoomHandlers(io, socket, activeGames) {
         }
         inMemoryRooms.set(roomCode, existingRoom);
         room = existingRoom;
-        console.log(`[DECK] After ${playerRole} save (in-memory) — room.host: ${JSON.stringify(room.host)}, room.guest: ${JSON.stringify(room.guest)}`);
+        dlog(`After ${playerRole} save (in-memory) — hostReady=${room.host.deck ? room.host.deck.length : 'null'}, guestReady=${room.guest && room.guest.deck ? room.guest.deck.length : 'null'}`);
       }
 
       // Check if both players have confirmed
       const hostReady = room.host.deck && room.host.deck.length === 15;
       const guestReady = room.guest && room.guest.deck && room.guest.deck.length === 15;
       const roomSockets = io.sockets.adapter.rooms.get(roomCode);
-      console.log(`[DECK] Room ${roomCode} — role=${playerRole} socket=${socket.id} roomSockets=${roomSockets ? roomSockets.size : 0} — hostReady=${hostReady} (${room.host.deck ? room.host.deck.length : 'null'} cards), guestReady=${guestReady} (${room.guest && room.guest.deck ? room.guest.deck.length : 'null'} cards)`);
+      dlog(`Room ${roomCode} — role=${playerRole} socket=${socket.id} roomSockets=${roomSockets ? roomSockets.size : 0} — hostReady=${hostReady} (${room.host.deck ? room.host.deck.length : 'null'} cards), guestReady=${guestReady} (${room.guest && room.guest.deck ? room.guest.deck.length : 'null'} cards)`);
 
       if (playerRole === 'host' && !guestReady) {
         socket.emit('waiting_for_opponent', { message: 'Waiting for opponent to confirm deck...' });
@@ -305,7 +312,7 @@ function registerRoomHandlers(io, socket, activeGames) {
       }
 
       if (hostReady && guestReady) {
-        console.log(`[DECK] Both ready in room ${roomCode} — initializing game`);
+        dlog(`Both ready in room ${roomCode} — initializing game`);
 
         // Both ready — initialize game
         const gameState = new GameState();
@@ -322,22 +329,22 @@ function registerRoomHandlers(io, socket, activeGames) {
         // the room's connected sockets by playerRole property.
         const hostSocketId = room.host.socketId;
         const guestSocketId = room.guest.socketId;
-        console.log(`[DECK] Looking up sockets — host.socketId=${hostSocketId}, guest.socketId=${guestSocketId}`);
+        dlog(`Looking up sockets — host.socketId=${hostSocketId}, guest.socketId=${guestSocketId}`);
 
         let hostSocket = io.sockets.sockets.get(hostSocketId);
         let guestSocket = io.sockets.sockets.get(guestSocketId);
 
         // Fallback: if lookup by stored ID fails, search connected sockets in this room
         if (!hostSocket || !guestSocket) {
-          console.log(`[DECK] Socket ID lookup failed (host=${!!hostSocket}, guest=${!!guestSocket}) — falling back to room scan`);
+          dlog(`Socket ID lookup failed (host=${!!hostSocket}, guest=${!!guestSocket}) — falling back to room scan`);
           for (const [, connectedSocket] of io.sockets.sockets) {
             if (connectedSocket.roomCode === roomCode) {
               if (connectedSocket.playerRole === 'host' && !hostSocket) {
                 hostSocket = connectedSocket;
-                console.log(`[DECK] Found host via room scan: ${connectedSocket.id}`);
+                dlog(`Found host via room scan: ${connectedSocket.id}`);
               } else if (connectedSocket.playerRole === 'guest' && !guestSocket) {
                 guestSocket = connectedSocket;
-                console.log(`[DECK] Found guest via room scan: ${connectedSocket.id}`);
+                dlog(`Found guest via room scan: ${connectedSocket.id}`);
               }
             }
           }
@@ -361,9 +368,9 @@ function registerRoomHandlers(io, socket, activeGames) {
             yourDeckCount: gameState.getPlayerDeckCount('host'),
             opponentDeckCount: gameState.getPlayerDeckCount('guest'),
           });
-          console.log(`[DECK] Emitted game_start to host (${hostSocket.id})`);
+          dlog(`Emitted game_start to host (${hostSocket.id})`);
         } else {
-          console.error(`[DECK] CRITICAL: Could not find host socket for room ${roomCode}. host.socketId=${hostSocketId}, room has ${io.sockets.sockets.size} total connections`);
+          derr(`CRITICAL: Could not find host socket for room ${roomCode}. host.socketId=${hostSocketId}, room has ${io.sockets.sockets.size} total connections`);
         }
 
         if (guestSocket) {
@@ -382,9 +389,9 @@ function registerRoomHandlers(io, socket, activeGames) {
             yourDeckCount: gameState.getPlayerDeckCount('guest'),
             opponentDeckCount: gameState.getPlayerDeckCount('host'),
           });
-          console.log(`[DECK] Emitted game_start to guest (${guestSocket.id})`);
+          dlog(`Emitted game_start to guest (${guestSocket.id})`);
         } else {
-          console.error(`[DECK] CRITICAL: Could not find guest socket for room ${roomCode}. guest.socketId=${guestSocketId}, room has ${io.sockets.sockets.size} total connections`);
+          derr(`CRITICAL: Could not find guest socket for room ${roomCode}. guest.socketId=${guestSocketId}, room has ${io.sockets.sockets.size} total connections`);
         }
 
         console.log(`Game started in room ${roomCode}`);
