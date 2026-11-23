@@ -33,6 +33,15 @@ const fullDisconnectTimers = new Map();
 // proof that anyone is still there.
 const ALIVE_PROBE_MS = 1000;
 
+// Rejoin tracing, opt-in with DEBUG_DECK=1 (same flag as the deck-flow logs).
+// One line per outcome, never the token itself.
+const DEBUG_DECK = process.env.DEBUG_DECK === '1';
+function rejoinOutcome(roomCode, role, socketId, outcome) {
+  if (DEBUG_DECK) {
+    console.log(`[REJOIN] room=${roomCode || '?'} role=${role || '?'} socket=${socketId || '?'} outcome=${outcome}`);
+  }
+}
+
 function respondsWithin(target, ms) {
   return new Promise((resolve) => {
     let settled = false;
@@ -143,7 +152,8 @@ function registerReconnectHandlers(io, socket, activeGames) {
   socket.on('rejoin_game', async ({ roomCode, rejoinToken, playerId, username }) => {
     try {
       if (!roomCode) {
-        socket.emit('error_message', { message: 'Room code is required to rejoin' });
+        rejoinOutcome('', null, socket.id, 'no_room_code');
+        socket.emit('error_message', { code: 'ROOM_CODE_REQUIRED', message: 'Room code is required to rejoin' });
         return;
       }
 
@@ -153,7 +163,8 @@ function registerReconnectHandlers(io, socket, activeGames) {
       const uname = (username || '').trim();
 
       if (!token) {
-        socket.emit('error_message', { message: 'Rejoin token is required' });
+        rejoinOutcome(code, null, socket.id, 'no_token');
+        socket.emit('error_message', { code: 'TOKEN_REQUIRED', message: 'Rejoin token is required' });
         return;
       }
 
@@ -163,7 +174,8 @@ function registerReconnectHandlers(io, socket, activeGames) {
 
       if (!room) {
         // Room no longer exists — tell the client to bail.
-        socket.emit('room_expired', { roomCode: code });
+        rejoinOutcome(code, null, socket.id, 'room_not_found');
+        socket.emit('room_expired', { code: 'ROOM_NOT_FOUND', roomCode: code });
         return;
       }
 
@@ -174,7 +186,8 @@ function registerReconnectHandlers(io, socket, activeGames) {
         playerRole = 'guest';
       }
       if (!playerRole) {
-        socket.emit('error_message', { message: 'Invalid rejoin token' });
+        rejoinOutcome(code, null, socket.id, 'invalid_token');
+        socket.emit('error_message', { code: 'INVALID_TOKEN', message: 'Invalid rejoin token' });
         return;
       }
 
@@ -183,7 +196,9 @@ function registerReconnectHandlers(io, socket, activeGames) {
       // token, silently demotes this socket, and both tabs claim the same seat —
       // nobody's deck ever counts and the game never starts.
       if (socket.roomCode === code && socket.playerRole && socket.playerRole !== playerRole) {
+        rejoinOutcome(code, playerRole, socket.id, 'other_seat_held');
         socket.emit('error_message', {
+          code: 'OTHER_SEAT_HELD',
           message: 'This window already holds the other seat. Use a separate browser window to join as a second player.',
         });
         return;
@@ -199,7 +214,9 @@ function registerReconnectHandlers(io, socket, activeGames) {
       if (holder) {
         const alive = holder.connected !== false && (await respondsWithin(holder, ALIVE_PROBE_MS));
         if (alive) {
+          rejoinOutcome(code, playerRole, socket.id, 'seat_in_use');
           socket.emit('seat_in_use', {
+            code: 'SEAT_IN_USE',
             role: playerRole,
             message: 'This seat is open in another tab. Close the other tab or use a different browser to play it.',
           });
@@ -213,6 +230,7 @@ function registerReconnectHandlers(io, socket, activeGames) {
         seat.socketId = socket.id;
         seat.connected = true;
         await saveRoom(room);
+        rejoinOutcome(code, playerRole, socket.id, 'evicted_stale');
         holder.disconnect(true);
       }
 
@@ -221,6 +239,7 @@ function registerReconnectHandlers(io, socket, activeGames) {
       // Finished games cannot be resumed — hand the stored result to the player
       // who reconnects late (e.g. after losing on the forfeit clock).
       if (roomStatus === 'finished') {
+        rejoinOutcome(code, playerRole, socket.id, 'finished');
         clearForfeitTimer(code, playerRole);
         socket.join(code);
         socket.roomCode = code;
@@ -232,7 +251,7 @@ function registerReconnectHandlers(io, socket, activeGames) {
         if (winnerRole) {
           socket.emit('game_over', buildGameOverPayload(room, winnerRole));
         } else {
-          socket.emit('room_expired', { roomCode: code });
+          socket.emit('room_expired', { code: 'ROOM_NOT_FOUND', roomCode: code });
         }
         return;
       }
@@ -276,6 +295,7 @@ function registerReconnectHandlers(io, socket, activeGames) {
         }
 
         // Tell the reconnecting client to head back to deck builder
+        rejoinOutcome(code, playerRole, socket.id, 'ok_lobby');
         socket.emit('rejoined_lobby', { roomCode: code, yourRole: playerRole });
         socket.to(code).emit('opponent_reconnected', {
           message: `${socket.username} reconnected!`,
@@ -285,11 +305,13 @@ function registerReconnectHandlers(io, socket, activeGames) {
       }
 
       if (!gameState) {
-        socket.emit('game_error', { message: 'Game session expired. Please rejoin.' });
+        rejoinOutcome(code, playerRole, socket.id, 'no_game_state');
+        socket.emit('game_error', { code: 'NO_GAME_STATE', message: 'Game session expired. Please rejoin.' });
         return;
       }
 
       // ── Playing-state rejoin ──
+      rejoinOutcome(code, playerRole, socket.id, 'ok_playing');
       // Cancel the forfeit clock immediately — the player is back.
       clearForfeitTimer(code, playerRole);
       await clearForfeitState(code);
@@ -368,7 +390,8 @@ function registerReconnectHandlers(io, socket, activeGames) {
       console.log(`${socket.username} reconnected to room ${code}`);
     } catch (err) {
       console.error('rejoin_game error:', err);
-      socket.emit('error_message', { message: 'Reconnection failed' });
+      rejoinOutcome(roomCode, null, socket.id, 'other');
+      socket.emit('error_message', { code: 'RECONNECT_FAILED', message: 'Reconnection failed' });
     }
   });
 }

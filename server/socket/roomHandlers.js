@@ -256,7 +256,17 @@ function registerRoomHandlers(io, socket, activeGames) {
       const existingRoom = await findRoom(roomCode);
       if (!existingRoom) {
         derr(`Room ${roomCode} not found`);
-        socket.emit('error_message', { message: 'Room not found' });
+        socket.emit('error_message', { code: 'ROOM_NOT_FOUND', message: 'Room not found' });
+        return;
+      }
+
+      // A double-click on Confirm emits deck_confirmed more than once. Once the
+      // game has started (or ended) the deck phase is over: a late duplicate
+      // must not build a second GameState and restart the match under the
+      // players who already navigated to the board.
+      const phase = (existingRoom.gameState && existingRoom.gameState.status) || 'waiting';
+      if (phase === 'playing' || phase === 'finished') {
+        dlog(`Ignoring duplicate deck_confirmed from ${playerRole} in room ${roomCode} — game already ${phase}`);
         return;
       }
 

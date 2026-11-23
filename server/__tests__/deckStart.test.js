@@ -332,3 +332,31 @@ test('a rejoin from a refreshed tab evicts its stale socket', async () => {
   expect(reloaded.emitted.find((e) => e.event === 'rejoined_lobby').payload.yourRole).toBe('host');
   expect((await Room.findOne({ roomCode })).host.socketId).toBe('reloaded-host-sock');
 });
+
+/**
+ * A double-click on Confirm emits deck_confirmed twice from the same socket.
+ * The second one must not start a second game, emit a second game_start, or
+ * emit an error that would bounce the player out of the game.
+ */
+test('a guest confirming its deck twice quickly does not break the game', async () => {
+  const io = makeIo();
+  const host = makeSocket(io, 'host-sock');
+  await host.handlers.create_room({ username: 'Alice', playerId: 'id-alice' });
+  const roomCode = host.emitted.find((e) => e.event === 'room_created').payload.roomCode;
+  const guest = makeSocket(io, 'guest-sock');
+  await guest.handlers.join_room({ username: 'Bob', roomCode, playerId: 'id-bob' });
+
+  await host.handlers.deck_confirmed({ deck: DECK });
+  await guest.handlers.deck_confirmed({ deck: DECK });
+
+  await Promise.all([
+    guest.handlers.deck_confirmed({ deck: DECK }),
+    guest.handlers.deck_confirmed({ deck: DECK }),
+  ]);
+
+  expect(host.emitted.some((e) => e.event === 'error_message')).toBe(false);
+  expect(guest.emitted.some((e) => e.event === 'error_message')).toBe(false);
+  // Exactly one game per player must have been started.
+  expect(host.emitted.filter((e) => e.event === 'game_start')).toHaveLength(1);
+  expect(guest.emitted.filter((e) => e.event === 'game_start')).toHaveLength(1);
+});

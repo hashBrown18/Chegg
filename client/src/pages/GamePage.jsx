@@ -31,7 +31,9 @@ export default function GamePage() {
   const { roomId } = useParams()
   const playerId = localStorage.getItem('chegg_player_id') || getOrCreatePlayerId()
   const [roomNotFound, setRoomNotFound] = useState(false)
-  const [seatInUse, setSeatInUse] = useState('')
+  // A seat that could not be claimed, after retries. Shown as a full screen with
+  // a Retry button — never a silent redirect to the join flow.
+  const [rejoinError, setRejoinError] = useState(null) // { code, message }
 
   // Secure rejoin token — never in the URL, never shared. The room code comes
   // from the URL when present, otherwise from the stored session. The role is
@@ -91,6 +93,9 @@ export default function GamePage() {
   const yourRoleRef = useRef(null)
   const currentTurnRef = useRef('host')
   const gameDataRef = useRef(null) // set as soon as the server hands over game state
+  const rejoinAttemptsRef = useRef(0)
+  const rejoinTimerRef = useRef(null)
+  const emitRejoinRef = useRef(() => {})
 
   // COUNCIL FIX: BUG 3 — refs for all state read inside socket handlers to
   // avoid stale closures from the empty-dep useEffect registration.
@@ -109,13 +114,20 @@ export default function GamePage() {
     boardStateRef.current = boardState
   }, [selectedMinion, selectedHandIndex, yourHand, highlights, boardState])
 
-  // A seat is only ever claimed with the private rejoin token — no token, no room
-  // context (or an old shared link) goes through the join flow instead.
+  // A seat is only ever claimed with the private rejoin token. Without one the
+  // game cannot be restored, so say so here instead of dropping the player into
+  // the join flow (where they would be told the room is already full).
   useEffect(() => {
     if (!roomCode || !rejoinToken) {
-      navigate(roomCode ? `/join/${roomCode}` : '/', { replace: true })
+      console.error('[REJOIN-FAIL]', 'missing-credentials', { roomCode, hasToken: !!rejoinToken, role })
+      setRejoinError({
+        code: 'MISSING_CREDENTIALS',
+        message: roomCode
+          ? 'This device has no rejoin token for this room. Open the game from the tab that joined it.'
+          : 'No room is open in this tab.',
+      })
     }
-  }, [roomCode, rejoinToken, navigate])
+  }, [roomCode, rejoinToken, role])
 
   // ── Mount: register socket events ──
   useEffect(() => {
@@ -127,10 +139,46 @@ export default function GamePage() {
     // COUNCIL FIX: BUG 4 — removed sessionStorage as third source of truth for hand state.
     // Hand data now comes only from server via game_start and your_hand events.
 
+    const FREE_RETRIES = 3
+    const RETRYABLE = new Set(['ROOM_NOT_FOUND', 'SEAT_IN_USE', 'RECONNECT_FAILED'])
+    const FATAL = new Set([
+      'INVALID_TOKEN', 'OTHER_SEAT_HELD', 'ROOM_CODE_REQUIRED', 'TOKEN_REQUIRED',
+      'NO_GAME_STATE', 'MISSING_CREDENTIALS',
+    ])
+
+    const emitRejoin = () => {
+      if (!roomCode || !rejoinToken) return
+      socket.emit('rejoin_game', { roomCode, rejoinToken, playerId, username })
+    }
+    emitRejoinRef.current = emitRejoin
+
+    // Classify a failed rejoin. Transient failures are retried with backoff;
+    // fatal ones get the full-screen Retry UI. Only a genuine seat problem is
+    // fatal — everything else is a toast so a stray server message can never
+    // push the player out of the game.
+    const failRejoin = (payload = {}) => {
+      const { code = '', message = '' } = payload
+      console.error('[REJOIN-FAIL]', code || 'no-code', message, payload)
+      if (!gameDataRef.current && RETRYABLE.has(code) && rejoinAttemptsRef.current < FREE_RETRIES) {
+        rejoinAttemptsRef.current += 1
+        const delay = 500 * rejoinAttemptsRef.current
+        console.warn(`[REJOIN] retry ${rejoinAttemptsRef.current}/${FREE_RETRIES} in ${delay}ms — ${code}`)
+        clearTimeout(rejoinTimerRef.current)
+        rejoinTimerRef.current = setTimeout(emitRejoin, delay)
+        return
+      }
+      if (FATAL.has(code) || RETRYABLE.has(code)) {
+        setRejoinError({ code: code || 'REJOIN_FAILED', message: message || 'Could not rejoin the game' })
+        return
+      }
+      // Not a seat problem — keep the player where they are and show it.
+      setMoveError({ message: message || 'Something went wrong' })
+    }
+
     if (roomCode && rejoinToken) {
       // Initial join/rejoin on mount — the private rejoin token is the only credential.
       console.log(`[CHEGG] Joining room ${roomCode}`)
-      socket.emit('rejoin_game', { roomCode, rejoinToken, playerId, username })
+      emitRejoin()
     }
 
     // ── Auto-reconnect on socket connect (socket.io handles reconnection, we rejoin) ──
@@ -138,12 +186,7 @@ export default function GamePage() {
       setIsConnecting(false)
       if (roomCode && rejoinToken) {
         console.log(`[CHEGG] Socket reconnected — re-joining room ${roomCode}`)
-        socket.emit('rejoin_game', {
-          roomCode,
-          rejoinToken,
-          playerId,
-          username,
-        })
+        emitRejoin()
       }
     }
 
@@ -225,21 +268,21 @@ export default function GamePage() {
       setRoomNotFound(true)
     })
 
-    socket.on('room_expired', () => setRoomNotFound(true))
+    socket.on('room_expired', failRejoin)
 
-    socket.on('seat_in_use', ({ message }) => setSeatInUse(message))
+    socket.on('seat_in_use', failRejoin)
 
-    socket.on('game_error', () => setRoomNotFound(true))
+    socket.on('game_error', failRejoin)
 
-    // A rejected rejoin (bad/missing token) before the game state arrives means
-    // this browser cannot claim the seat — send it back to the join flow instead
-    // of sitting on "Connecting to game..." forever. Rejections that arrive after
-    // the state is restored are shown by the reconnect overlay, not acted on here.
-    socket.on('error_message', ({ message } = {}) => {
-      if (!gameDataRef.current && roomCode) {
-        console.warn('[CHEGG] Rejected before game state:', message)
-        navigate(`/join/${roomCode}`, { replace: true })
+    // A rejected rejoin is never turned into a redirect. Transient reasons are
+    // retried; a real seat failure shows the Retry screen. Anything else is a
+    // toast, so a stray message cannot eject a player mid-game.
+    socket.on('error_message', (payload = {}) => {
+      if (gameDataRef.current) {
+        setMoveError({ message: payload.message || 'Something went wrong' })
+        return
       }
+      failRejoin(payload)
     })
 
     socket.on('invalid_move', ({ message, reason }) => {
@@ -297,6 +340,7 @@ export default function GamePage() {
     })
 
     return () => {
+      clearTimeout(rejoinTimerRef.current)
       socket.off('connect', onConnect)
       socket.off('disconnect', onDisconnect)
       socket.off('game_start')
@@ -523,22 +567,21 @@ export default function GamePage() {
     side: 'right',
   }
 
-   if (seatInUse) {
+   if (rejoinError) {
      return (
        <div className="gamepage-error">
-         <h2>This seat is open in another tab</h2>
-         <p>{seatInUse}</p>
-         <button onClick={() => navigate('/')}>Return to Home</button>
-       </div>
-     )
-   }
-
-   if (roomNotFound) {
-     return (
-       <div className="gamepage-error">
-         <h2>Room not found or expired</h2>
-         <p>The room you are looking for does not exist or has been deleted.</p>
-         <button onClick={() => navigate('/')}>Return to Home</button>
+         <h2>Could not rejoin</h2>
+         <p>{rejoinError.message}</p>
+         <div className="error-reason font-label" style={{opacity: 0.8, marginBottom: 12}}>
+           {rejoinError.code}
+         </div>
+         <button
+           className="btn btn-primary"
+           onClick={() => { rejoinAttemptsRef.current = 0; setRejoinError(null); emitRejoinRef.current(); }}
+         >
+           Retry
+         </button>
+         <button className="btn btn-ghost" onClick={() => navigate('/')}>Return to Home</button>
        </div>
      )
    }
