@@ -142,3 +142,22 @@ test('rematch: both tabs refresh mid-rematch and rejoin with their roles', async
     await context.close();
   }
 });
+
+test('refreshing both players mid-game five times keeps both seated', async ({ browser }) => {
+  const context = await browser.newContext(); // shared localStorage
+  const host = await context.newPage();
+  const guest = await context.newPage();
+  try {
+    await playThrough(host, guest);
+
+    // A refresh leaves the old socket registered for a moment; the new socket
+    // must still win the seat instead of being refused as "another tab".
+    for (let i = 0; i < 5; i++) {
+      await Promise.all([host.reload(), guest.reload()]);
+      await expectGame(host, 'host');
+      await expectGame(guest, 'guest');
+    }
+  } finally {
+    await context.close();
+  }
+});

@@ -11,4 +11,10 @@ const socket = io(SOCKET_URL, {
   randomizationFactor: 0.5,
 })
 
+// Server liveness probe. Only a tab that is still running answers, which lets
+// the server tell a duplicated tab (alive) from a refresh's leftover socket.
+socket.on('__alive', (_payload, ack) => {
+  if (typeof ack === 'function') ack()
+})
+
 export default socket

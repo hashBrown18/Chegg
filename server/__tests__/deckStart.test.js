@@ -40,7 +40,7 @@ function makeIo() {
   return io;
 }
 
-function makeSocket(io, id) {
+function makeSocket(io, id, { responds = true } = {}) {
   const handlers = {};
   const emitted = [];
   const socket = {
@@ -48,8 +48,18 @@ function makeSocket(io, id) {
     handlers,
     emitted,
     rooms: new Set(),
+    connected: true,
     on: (event, fn) => { handlers[event] = fn },
-    emit: (event, payload) => emitted.push({ event, payload }),
+    // A live client answers the server's liveness probe; `responds: false`
+    // simulates the leftover socket of a refreshed tab.
+    emit: (event, payload, ack) => {
+      emitted.push({ event, payload });
+      if (event === '__alive' && responds && typeof ack === 'function') ack();
+    },
+    disconnect: () => {
+      socket.evicted = true;
+      io.sockets.sockets.delete(id);
+    },
     join: (room) => {
       socket.rooms.add(room);
       if (!io.sockets.adapter.rooms.has(room)) io.sockets.adapter.rooms.set(room, new Set());
@@ -271,4 +281,28 @@ test('a rematch rotates both rejoin tokens and refreshes can use the new ones', 
   expect(hostReloaded.emitted.some((e) => e.event === 'game_start')).toBe(true);
   expect(guestReloaded.emitted.some((e) => e.event === 'game_start')).toBe(true);
   expect((await Room.findOne({ roomCode })).gameState.status).toBe('playing');
+});
+
+/**
+ * A refresh closes the old socket, but the new one's rejoin can arrive before
+ * the server has processed that close. The seat holder must only be trusted if
+ * it answers a liveness probe; otherwise the refresh has to win.
+ */
+test('a rejoin from a refreshed tab evicts its stale socket', async () => {
+  const io = makeIo();
+
+  // The old tab is already gone: still registered, but nobody answers the probe.
+  const stale = makeSocket(io, 'stale-host-sock', { responds: false });
+  await stale.handlers.create_room({ username: 'Alice', playerId: 'id-alice' });
+  const created = stale.emitted.find((e) => e.event === 'room_created');
+  const roomCode = created.payload.roomCode;
+
+  const reloaded = makeSocket(io, 'reloaded-host-sock');
+  await reloaded.handlers.rejoin_game({ roomCode, rejoinToken: created.payload.rejoinToken });
+
+  expect(reloaded.emitted.some((e) => e.event === 'seat_in_use')).toBe(false);
+  expect(stale.evicted).toBe(true);
+  expect(reloaded.playerRole).toBe('host');
+  expect(reloaded.emitted.find((e) => e.event === 'rejoined_lobby').payload.yourRole).toBe('host');
+  expect((await Room.findOne({ roomCode })).host.socketId).toBe('reloaded-host-sock');
 });

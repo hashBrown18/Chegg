@@ -27,6 +27,30 @@ const isMongoConnected = () => mongoose.connection.readyState === 1;
 // from both memory and MongoDB if BOTH players are still disconnected.
 const fullDisconnectTimers = new Map();
 
+// How long a socket that still holds a seat gets to answer a liveness probe.
+// A refreshed tab closes its old socket first, but the new rejoin can reach the
+// server before the close is processed, so a registered socket alone is not
+// proof that anyone is still there.
+const ALIVE_PROBE_MS = 1000;
+
+function respondsWithin(target, ms) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (alive) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(alive);
+    };
+    const timer = setTimeout(() => finish(false), ms);
+    try {
+      target.emit('__alive', null, () => finish(true));
+    } catch {
+      finish(false);
+    }
+  });
+}
+
 function constantTimeEqual(a, b) {
   // Both must be buffers/strings of same length
   const bufA = typeof a === 'string' ? Buffer.from(a) : a;
@@ -168,14 +192,28 @@ function registerReconnectHandlers(io, socket, activeGames) {
       // A live socket already in this seat wins. A duplicated tab copies
       // sessionStorage, so it presents the same token — accepting it would
       // silently move the seat out from under the tab the player is using.
+      // A refresh, however, leaves a socket registered for a moment with nobody
+      // behind it, so only a socket that answers the probe counts as alive.
       const holderId = playerRole === 'host' ? room.host.socketId : room.guest.socketId;
       const holder = holderId && holderId !== socket.id ? io.sockets.sockets.get(holderId) : null;
-      if (holder && holder.connected !== false) {
-        socket.emit('seat_in_use', {
-          role: playerRole,
-          message: 'This seat is open in another tab. Close the other tab or use a different browser to play it.',
-        });
-        return;
+      if (holder) {
+        const alive = holder.connected !== false && (await respondsWithin(holder, ALIVE_PROBE_MS));
+        if (alive) {
+          socket.emit('seat_in_use', {
+            role: playerRole,
+            message: 'This seat is open in another tab. Close the other tab or use a different browser to play it.',
+          });
+          return;
+        }
+
+        // Stale connection from a refresh: hand the seat over first, so the old
+        // socket's own disconnect handler sees a socketId that is no longer its
+        // own and does not clear the seat or arm a forfeit clock.
+        const seat = playerRole === 'host' ? room.host : room.guest;
+        seat.socketId = socket.id;
+        seat.connected = true;
+        await saveRoom(room);
+        holder.disconnect(true);
       }
 
       const roomStatus = (room.gameState && room.gameState.status) || 'waiting';
