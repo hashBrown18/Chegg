@@ -100,4 +100,5 @@ mongoose
 module.exports = { app, server, io, activeGames };
 
 // cron-job
-app.get('/health', (req, res) => res.status(200).send('ok'));
+app.get('/health', (req, res) => res.sendStatus(204));
+app.head('/health', (req, res) => res.sendStatus(204));
