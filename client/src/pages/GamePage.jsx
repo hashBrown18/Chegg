@@ -386,6 +386,10 @@ export default function GamePage() {
     setTurnNumber(data.turnNumber ?? 1)
     setHostUsername(data.hostUsername || 'Host')
     setGuestUsername(data.guestUsername || 'Guest')
+    // The seat is claimed — a later transient message must not retry or block.
+    clearTimeout(rejoinTimerRef.current)
+    rejoinAttemptsRef.current = 0
+    setRejoinError(null)
   }
 
   function clearSelections() {
