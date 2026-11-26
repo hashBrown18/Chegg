@@ -1,200 +1,86 @@
 /**
- * HeroSection — Dark animated hero for CHEGG
- * Structure inspired by 21st.dev animated hero patterns.
- *
- * Features:
- *  - Animated gradient CHEGG title with emerald+gold shimmer
- *  - Eyebrow badge: CHESS × MINECRAFT
- *  - Subheadline with typewriter feel
- *  - Two CTA buttons with magnetic particle attraction (AttractButton)
- *  - Decorative chess board mini-grid
+ * HeroSection — reference-matched split hero.
+ * Content sits left, the king fills the right side and is cropped by the
+ * bottom of the first screen.
  */
-import AttractButton from '../ui/AttractButton.jsx'
+function PlayIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M6 3.5v17l15-8.5-15-8.5z" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" focusable="false">
+      <path d="M12 4v16M4 12h16" />
+    </svg>
+  )
+}
+
+function GamepadIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M7.5 7h9a4.5 4.5 0 0 1 4.4 5.4l-.8 4a3 3 0 0 1-5.1 1.5L13.5 16h-3L9 17.9a3 3 0 0 1-5.1-1.5l-.8-4A4.5 4.5 0 0 1 7.5 7z" />
+      <path d="M8 11v3M6.5 12.5h3" />
+      <circle cx="16" cy="12" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="14" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function MouseIcon() {
+  return (
+    <svg width="15" height="23" viewBox="0 0 20 30" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true" focusable="false">
+      <rect x="1" y="1" width="18" height="28" rx="9" />
+      <path d="M10 6.5v4" strokeLinecap="round" />
+    </svg>
+  )
+}
 
 export default function HeroSection({ onJoin, onCreate, onSingleplayer }) {
   return (
-    <section
-      style={{
-        position: 'relative',
-        zIndex: 10,
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        padding: '80px 2rem 4rem',
-      }}
-    >
-      {/* ── Eyebrow badge ── */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          padding: '0.35rem 1rem',
-          background: 'rgba(16,185,129,0.08)',
-          border: '1px solid rgba(16,185,129,0.25)',
-          borderRadius: '999px',
-          marginBottom: '2rem',
-          animation: 'fadeInUp 0.5s var(--ease-out) 0.05s both',
-        }}
-      >
-        <span style={{ color: 'var(--emerald)', fontSize: '0.75rem' }}>♟</span>
-        <span
-          className="font-label"
-          style={{
-            fontSize: '0.6rem',
-            letterSpacing: '0.22em',
-            color: 'var(--emerald-glow)',
-          }}
-        >
-          CHESS × MINECRAFT
+    <section className="hero">
+      <div className="hero-copy">
+        <span className="hero-eyebrow">
+          <i className="hero-eyebrow-line" aria-hidden="true" />
+          <span>CHESS × MINECRAFT</span>
         </span>
-        <span style={{ color: 'var(--gold)', fontSize: '0.75rem' }}>♙</span>
+
+        <h1 className="hero-title">
+          <span>CHE</span><span className="hero-title-accent">GG</span>
+        </h1>
+
+        <p className="hero-tagline">Command your pieces. Harvest your world.</p>
+
+        <div className="hero-actions">
+          <button type="button" className="cta cta-filled" onClick={onJoin}>
+            <PlayIcon />
+            <span>Join Room</span>
+          </button>
+          <button type="button" className="cta cta-outline" onClick={onCreate}>
+            <span className="cta-plus"><PlusIcon /></span>
+            <span>Create Room</span>
+          </button>
+        </div>
+
+        <button type="button" className="cta cta-outline cta-single" onClick={onSingleplayer}>
+          <span className="cta-plus"><GamepadIcon /></span>
+          <span>Singleplayer</span>
+        </button>
       </div>
 
-      {/* ── Main title ── */}
-      <h1
-        className="font-display"
-        style={{
-          fontSize: 'clamp(5rem, 16vw, 11rem)',
-          fontWeight: 700,
-          lineHeight: 0.88,
-          letterSpacing: '-0.04em',
-          background: `linear-gradient(
-            135deg,
-            var(--gold-bright)   0%,
-            var(--parchment)    30%,
-            var(--emerald-glow) 60%,
-            var(--gold)         80%,
-            var(--gold-bright) 100%
-          )`,
-          backgroundSize: '300% auto',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          animation: 'hero-title-in 0.9s var(--ease-out) 0.1s both, shimmer-gold 5s linear 1s infinite',
-          marginBottom: '1.25rem',
-          position: 'relative',
-        }}
-      >
-        CHEGG
-      </h1>
-
-      {/* ── Divider ── */}
-      <div
-        style={{
-          width: '8rem',
-          height: '1px',
-          margin: '0 auto 1.5rem',
-          background: 'linear-gradient(90deg, transparent, var(--gold) 30%, var(--emerald) 70%, transparent)',
-          animation: 'fadeInUp 0.5s var(--ease-out) 0.3s both',
-        }}
-      />
-
-      {/* ── Subtitle ── */}
-      <p
-        className="font-body"
-        style={{
-          fontSize: 'clamp(1rem, 2.5vw, 1.25rem)',
-          color: 'var(--parchment-muted)',
-          maxWidth: '480px',
-          lineHeight: 1.65,
-          marginBottom: '1rem',
-          animation: 'fadeInUp 0.6s var(--ease-out) 0.35s both',
-        }}
-      >
-        Command your pieces. Harvest your world.
-      </p>
-
-      <p
-        className="font-label"
-        style={{
-          fontSize: '0.68rem',
-          letterSpacing: '0.18em',
-          color: 'var(--stone-light)',
-          marginBottom: '3rem',
-          animation: 'fadeInUp 0.5s var(--ease-out) 0.42s both',
-        }}
-      >
-        2 PLAYERS · ONLINE MULTIPLAYER · DECK-BUILDING
-      </p>
-
-      {/* ── CTA Buttons ── */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          animation: 'fadeInUp 0.6s var(--ease-out) 0.48s both',
-        }}
-      >
-        {/* Join Room — emerald particle attraction */}
-        <AttractButton onClick={onJoin} color="emerald">
-          ⚔️ <span>Join Room</span>
-        </AttractButton>
-
-        {/* Create Room — gold particle attraction */}
-        <AttractButton onClick={onCreate} color="gold">
-          ♟ <span>Create Room</span>
-        </AttractButton>
+      <div className="hero-art" aria-hidden="true">
+        <div className="hero-ring" />
+        <img className="hero-king" src="/images/king-cutout.png" alt="" draggable="false" />
       </div>
 
-      {/* ── Singleplayer CTA ── */}
-      <div
-        style={{
-          marginTop: '1rem',
-          animation: 'fadeInUp 0.6s var(--ease-out) 0.56s both',
-        }}
-      >
-        <AttractButton onClick={onSingleplayer} color="emerald" particleCount={8}>
-          🎮 <span>Singleplayer Mode (If You Don't Have Friends Skill Issue)</span>
-        </AttractButton>
+      <div className="hero-scroll" aria-hidden="true">
+        <i className="hero-scroll-bar" />
+        <MouseIcon />
+        <span>Scroll to explore</span>
       </div>
-
-      {/* ── Decorative chess mini-board ── */}
-      <div
-        style={{
-          marginTop: '4rem',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          gap: 0,
-          width: 'min(280px, 55vw)',
-          aspectRatio: '8 / 1',
-          borderRadius: '0.25rem',
-          overflow: 'hidden',
-          border: '1px solid rgba(74,74,82,0.4)',
-          animation: 'fadeInUp 0.5s var(--ease-out) 0.6s both',
-          opacity: 0.6,
-        }}
-      >
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              aspectRatio: '1',
-              background: i % 2 === 0
-                ? 'rgba(37,37,41,0.9)'
-                : 'rgba(16,185,129,0.12)',
-            }}
-          />
-        ))}
-      </div>
-
-      <p
-        className="font-label"
-        style={{
-          marginTop: '1rem',
-          fontSize: '0.58rem',
-          letterSpacing: '0.2em',
-          color: 'rgba(138,138,150,0.5)',
-          animation: 'fadeInUp 0.4s var(--ease-out) 0.65s both',
-        }}
-      >
-        SCROLL TO EXPLORE
-      </p>
     </section>
   )
 }

@@ -1,7 +1,6 @@
 /**
- * Loader — Emerald-themed animated loading spinner
- * Based on kokonutui loader, adapted for CHEGG obsidian/emerald theme.
- * Multi-ring concentric animation with emerald green accents.
+ * Loader — purple animated loading spinner for the near-black CHEGG theme.
+ * Based on kokonutui loader; multi-ring concentric animation.
  */
 import { motion } from 'framer-motion'
 
@@ -45,7 +44,7 @@ export default function Loader({
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            background: 'conic-gradient(from 0deg, transparent 0deg, #10b981 90deg, transparent 180deg)',
+            background: 'conic-gradient(from 0deg, transparent 0deg, var(--brand-purple) 90deg, transparent 180deg)',
             mask: 'radial-gradient(circle at 50% 50%, transparent 35%, black 37%, black 39%, transparent 41%)',
             WebkitMask: 'radial-gradient(circle at 50% 50%, transparent 35%, black 37%, black 39%, transparent 41%)',
             opacity: 0.8,
@@ -60,7 +59,7 @@ export default function Loader({
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            background: 'conic-gradient(from 0deg, transparent 0deg, #10b981 120deg, rgba(16,185,129,0.5) 240deg, transparent 360deg)',
+            background: 'conic-gradient(from 0deg, transparent 0deg, var(--brand-purple) 120deg, rgba(139,61,255,0.5) 240deg, transparent 360deg)',
             mask: 'radial-gradient(circle at 50% 50%, transparent 42%, black 44%, black 48%, transparent 50%)',
             WebkitMask: 'radial-gradient(circle at 50% 50%, transparent 42%, black 44%, black 48%, transparent 50%)',
             opacity: 0.9,
@@ -75,7 +74,7 @@ export default function Loader({
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            background: 'conic-gradient(from 180deg, transparent 0deg, rgba(16,185,129,0.6) 45deg, transparent 90deg)',
+            background: 'conic-gradient(from 180deg, transparent 0deg, rgba(139,61,255,0.6) 45deg, transparent 90deg)',
             mask: 'radial-gradient(circle at 50% 50%, transparent 52%, black 54%, black 56%, transparent 58%)',
             WebkitMask: 'radial-gradient(circle at 50% 50%, transparent 52%, black 54%, black 56%, transparent 58%)',
             opacity: 0.35,
@@ -90,7 +89,7 @@ export default function Loader({
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            background: 'conic-gradient(from 270deg, transparent 0deg, rgba(16,185,129,0.4) 20deg, transparent 40deg)',
+            background: 'conic-gradient(from 270deg, transparent 0deg, rgba(139,61,255,0.4) 20deg, transparent 40deg)',
             mask: 'radial-gradient(circle at 50% 50%, transparent 61%, black 62%, black 63%, transparent 64%)',
             WebkitMask: 'radial-gradient(circle at 50% 50%, transparent 61%, black 62%, black 63%, transparent 64%)',
             opacity: 0.5,
@@ -98,14 +97,14 @@ export default function Loader({
           transition={{ duration: 3.5, repeat: Infinity, ease: 'linear' }}
         />
 
-        {/* Gold accent ring */}
+        {/* Accent ring */}
         <motion.div
           animate={{ rotate: [0, 360] }}
           style={{
             position: 'absolute',
             inset: 0,
             borderRadius: '50%',
-            background: 'conic-gradient(from 90deg, transparent 0deg, rgba(201,168,76,0.35) 30deg, transparent 60deg)',
+            background: 'conic-gradient(from 90deg, transparent 0deg, rgba(164,107,255,0.4) 30deg, transparent 60deg)',
             mask: 'radial-gradient(circle at 50% 50%, transparent 26%, black 27%, black 28%, transparent 29%)',
             WebkitMask: 'radial-gradient(circle at 50% 50%, transparent 26%, black 27%, black 28%, transparent 29%)',
             opacity: 0.6,
@@ -127,7 +126,7 @@ export default function Loader({
             style={{
               fontSize: cfg.titleSize,
               fontWeight: 600,
-              color: 'var(--emerald)',
+              color: 'var(--brand-text)',
               letterSpacing: '0.04em',
               marginBottom: subtitle ? '0.5rem' : 0,
             }}
@@ -141,7 +140,7 @@ export default function Loader({
               className="font-body"
               style={{
                 fontSize: cfg.subSize,
-                color: 'var(--stone-light)',
+                color: 'var(--brand-muted)',
                 letterSpacing: '0.02em',
               }}
               initial={{ opacity: 0, y: 8 }}

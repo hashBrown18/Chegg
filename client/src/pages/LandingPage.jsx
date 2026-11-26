@@ -4,6 +4,7 @@ import GlowBackground from '../components/Landing/GlowBackground.jsx'
 import LandingNavbar from '../components/Landing/LandingNavbar.jsx'
 import HeroSection from '../components/Landing/HeroSection.jsx'
 import FeatureCards from '../components/Landing/FeatureCards.jsx'
+import SiteFooter from '../components/Landing/SiteFooter.jsx'
 import RulesPanel from '../components/GameUI/RulesPanel.jsx'
 import './LandingPage.css'
 
@@ -12,45 +13,23 @@ export default function LandingPage() {
   const [showRules, setShowRules] = useState(false)
 
   return (
-    <div className="landing-v2">
-      {/* Animated obsidian + glow background */}
+    <div className="site-page">
       <GlowBackground />
 
-      {/* Glassmorphic navbar */}
       <LandingNavbar onRules={() => setShowRules(true)} />
 
-      {/* Hero section */}
-      <HeroSection
-        onJoin={() => navigate('/join')}
-        onCreate={() => navigate('/create')}
-        onSingleplayer={() => navigate('/singleplayer')}
-      />
+      <main className="site-main">
+        <HeroSection
+          onJoin={() => navigate('/join')}
+          onCreate={() => navigate('/create')}
+          onSingleplayer={() => navigate('/singleplayer')}
+        />
 
-      {/* Feature cards section */}
-      <FeatureCards />
+        <FeatureCards />
+      </main>
 
-      {/* Footer strip */}
-      <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <span className="font-display landing-footer-logo">♔ CHEGG</span>
-          <span className="font-label landing-footer-tag">
-            Chess × Minecraft · Multiplayer Strategy
-          </span>
-          <button
-            id="btn-rules-landing"
-            className="landing-footer-rules"
-            onClick={() => setShowRules(true)}
-          >
-            📖 How to Play
-          </button>
-        </div>
-        <div className="landing-footer-line" />
-        <p className="font-label landing-footer-copy">
-          2 players per game · Created with obsidian & enderpearls
-        </p>
-      </footer>
+      <SiteFooter />
 
-      {/* Rules overlay */}
       {showRules && <RulesPanel onClose={() => setShowRules(false)} />}
     </div>
   )

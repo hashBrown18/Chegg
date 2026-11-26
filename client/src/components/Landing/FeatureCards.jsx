@@ -1,23 +1,57 @@
 /**
- * FeatureCards — Bento-style feature grid for CHEGG
- * 3 stone-slab cards with gold icon borders, emerald hover glow.
- * Scroll-reveal + mouse tilt effect.
+ * FeatureCards — three mechanic cards.
+ * The scroll-reveal and mouse-tilt hover are the same animation the cards
+ * used before, retuned to the purple palette.
  */
-
 import { useRef, useCallback } from 'react'
 import { useScrollReveal } from './useScrollReveal'
+import CrownIcon from './CrownIcon.jsx'
+
+function GridIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <rect x="3" y="3" width="7" height="7" rx="1.2" />
+      <rect x="14" y="3" width="7" height="7" rx="1.2" />
+      <rect x="3" y="14" width="7" height="7" rx="1.2" />
+      <rect x="14" y="14" width="7" height="7" rx="1.2" />
+    </svg>
+  )
+}
+
+function ManaIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M12 2.5 21 12l-9 9.5L3 12l9-9.5z" />
+      <path d="M12 7.5 16.5 12 12 16.5 7.5 12 12 7.5z" />
+    </svg>
+  )
+}
+
+function KingIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M3 8l4 4 5-7 5 7 4-4-2 10H5L3 8z" />
+      <path d="M5 21h14" />
+    </svg>
+  )
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  )
+}
 
 const FEATURES = [
   {
     id: 'tactical-grid',
-    icon: '⬡',
-    chessIcon: '♞',
+    tag: 'Tactics',
+    Icon: GridIcon,
     title: 'Tactical Grid',
     subtitle: 'Chess Movement, Survival Terrain',
     desc: 'Every piece follows chess movement rules — but the board is a living Minecraft biome. Block your enemy, harvest resources, control the centre.',
-    accentColor: 'var(--emerald)',
-    glowColor: 'rgba(16,185,129,0.15)',
-    borderHover: 'rgba(52,211,153,0.4)',
     offsetX: '-80px',
     offsetY: '0px',
     duration: '0.7s',
@@ -25,15 +59,11 @@ const FEATURES = [
   },
   {
     id: 'mana-engine',
-    icon: '✦',
-    chessIcon: '♛',
+    tag: 'Resource',
+    Icon: ManaIcon,
     title: 'Mana Engine',
     subtitle: 'The Energy of Creation',
     desc: 'Mana grows each turn up to 6 crystals. Spend wisely — summon powerful pieces, craft abilities, or hold reserves for a devastating counter-surge.',
-    accentColor: 'var(--gold)',
-    glowColor: 'rgba(201,168,76,0.15)',
-    borderHover: 'rgba(240,192,64,0.4)',
-    featured: true,
     offsetX: '0px',
     offsetY: '40px',
     duration: '0.7s',
@@ -41,14 +71,11 @@ const FEATURES = [
   },
   {
     id: 'protect-king',
-    icon: '♚',
-    chessIcon: '♔',
+    tag: 'Victory',
+    Icon: KingIcon,
     title: 'Protect Your King',
     subtitle: 'Guard the Villager. Win the World.',
     desc: 'Your Villager is your king. Let it fall and the world ends. Sacrifice pieces, build defences, and hunt theirs down. One elimination. Game over.',
-    accentColor: 'var(--emerald)',
-    glowColor: 'rgba(16,185,129,0.15)',
-    borderHover: 'rgba(52,211,153,0.4)',
     offsetX: '80px',
     offsetY: '0px',
     duration: '0.7s',
@@ -58,59 +85,31 @@ const FEATURES = [
 
 export default function FeatureCards() {
   return (
-    <section
-      style={{
-        position: 'relative',
-        zIndex: 10,
-        padding: '0 2rem 6rem',
-        maxWidth: '1100px',
-        margin: '0 auto',
-        width: '100%',
-      }}
-    >
-      {/* Section heading */}
-      <div
-        style={{
-          textAlign: 'center',
-          marginBottom: '3rem',
-          animation: 'fadeInUp 0.5s var(--ease-out) both',
-        }}
-      >
-        <p
-          className="font-label"
-          style={{
-            fontSize: '0.6rem',
-            letterSpacing: '0.25em',
-            color: 'var(--emerald)',
-            marginBottom: '0.75rem',
-          }}
-        >
-          GAME MECHANICS
-        </p>
-        <h2
-          className="font-display"
-          style={{
-            fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
-            fontWeight: 700,
-            color: 'var(--parchment)',
-            lineHeight: 1.15,
-          }}
-        >
-          Three Systems. One Battlefield.
+    <section className="features" id="mechanics">
+      <div className="features-head">
+        <span className="section-label">
+          <i className="section-label-line" aria-hidden="true" />
+          <span>Game Mechanics</span>
+          <i className="section-label-line" aria-hidden="true" />
+        </span>
+        <h2 className="features-title">
+          Three Systems. <span>One Battlefield.</span>
         </h2>
+        <p className="features-sub">
+          Movement, mana, and victory — three interlocking systems that decide every match.
+        </p>
       </div>
 
-      {/* Card grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '1.25rem',
-        }}
-      >
-        {FEATURES.map((f) => (
-          <FeatureCard key={f.id} feature={f} />
+      <div className="features-grid">
+        {FEATURES.map((feature) => (
+          <FeatureCard key={feature.id} feature={feature} />
         ))}
+      </div>
+
+      <div className="crown-divider" aria-hidden="true">
+        <span className="crown-divider-line" />
+        <span className="crown-divider-mark"><CrownIcon size={20} /></span>
+        <span className="crown-divider-line" />
       </div>
     </section>
   )
@@ -146,23 +145,21 @@ function FeatureCard({ feature: f }) {
     card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`
   }
 
-  const handleMouseLeave = (e) => {
+  const handleMouseLeave = () => {
     const card = cardRef.current
     if (!card) return
     card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0)'
-    card.style.borderColor = 'rgba(74,74,82,0.35)'
-    card.style.boxShadow = '0 2px 16px rgba(0,0,0,0.3)'
-    card.style.background = f.featured
-      ? 'rgba(26,26,30,0.85)'
-      : 'rgba(17,17,20,0.75)'
+    card.style.borderColor = 'rgba(139, 61, 255, 0.18)'
+    card.style.boxShadow = '0 2px 16px rgba(0, 0, 0, 0.3)'
+    card.style.background = 'rgba(17, 15, 23, 0.75)'
   }
 
-  const handleMouseEnter = (e) => {
+  const handleMouseEnter = () => {
     const card = cardRef.current
     if (!card) return
-    card.style.borderColor = f.borderHover
-    card.style.boxShadow = `0 0 32px ${f.glowColor}, 0 4px 24px rgba(0,0,0,0.4)`
-    card.style.background = 'rgba(26,26,30,0.95)'
+    card.style.borderColor = 'rgba(139, 61, 255, 0.55)'
+    card.style.boxShadow = '0 0 32px rgba(139, 61, 255, 0.16), 0 4px 24px rgba(0, 0, 0, 0.4)'
+    card.style.background = 'rgba(23, 19, 32, 0.95)'
   }
 
   const transitionStyle = revealed
@@ -170,136 +167,38 @@ function FeatureCard({ feature: f }) {
     : `${revealStyle.transition}, background 0.28s var(--ease-out), border-color 0.28s var(--ease-out), box-shadow 0.28s var(--ease-out)`
 
   return (
-    <div
+    <article
       ref={setRefs}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      className="feature-card"
       style={{
         ...revealStyle,
         position: 'relative',
-        background: f.featured ? 'rgba(26,26,30,0.85)' : 'rgba(17,17,20,0.75)',
-        border: `1px solid ${f.featured ? 'rgba(201,168,76,0.3)' : 'rgba(74,74,82,0.35)'}`,
+        background: 'rgba(17, 15, 23, 0.75)',
+        border: '1px solid rgba(139, 61, 255, 0.18)',
         borderRadius: '1rem',
         padding: '2rem 1.75rem',
         cursor: 'default',
         transition: transitionStyle,
-        boxShadow: '0 2px 16px rgba(0,0,0,0.3)',
+        boxShadow: '0 2px 16px rgba(0, 0, 0, 0.3)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         overflow: 'hidden',
         transformStyle: 'preserve-3d',
       }}
     >
-      {/* Featured star badge */}
-      {f.featured && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '1rem',
-            right: '1rem',
-            fontSize: '0.6rem',
-            fontFamily: 'var(--font-label)',
-            letterSpacing: '0.15em',
-            color: 'var(--gold)',
-            background: 'rgba(201,168,76,0.1)',
-            border: '1px solid rgba(201,168,76,0.3)',
-            borderRadius: '999px',
-            padding: '0.2rem 0.6rem',
-          }}
-        >
-          CORE MECHANIC
-        </div>
-      )}
-
-      {/* Icon area */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          marginBottom: '1.25rem',
-        }}
-      >
-        {/* Hexagon icon container */}
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '0.625rem',
-            background: `${f.glowColor}`,
-            border: `1px solid ${f.accentColor}40`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.4rem',
-            color: f.accentColor,
-            flexShrink: 0,
-            boxShadow: `0 0 16px ${f.glowColor}`,
-          }}
-        >
-          {f.icon}
-        </div>
-        <span
-          style={{
-            fontSize: '2rem',
-            opacity: 0.12,
-            color: f.accentColor,
-            lineHeight: 1,
-          }}
-        >
-          {f.chessIcon}
-        </span>
+      <div className="feature-card-top">
+        <span className="feature-icon"><f.Icon /></span>
+        <span className="feature-tag">{f.tag}</span>
       </div>
 
-      {/* Text */}
-      <h3
-        className="font-display"
-        style={{
-          fontSize: '1.1rem',
-          fontWeight: 700,
-          color: 'var(--parchment)',
-          marginBottom: '0.3rem',
-          lineHeight: 1.2,
-        }}
-      >
-        {f.title}
-      </h3>
-      <p
-        className="font-label"
-        style={{
-          fontSize: '0.58rem',
-          letterSpacing: '0.18em',
-          color: f.accentColor,
-          marginBottom: '0.875rem',
-          opacity: 0.85,
-        }}
-      >
-        {f.subtitle}
-      </p>
-      <p
-        className="font-body"
-        style={{
-          fontSize: '0.875rem',
-          color: 'var(--stone-light)',
-          lineHeight: 1.65,
-        }}
-      >
-        {f.desc}
-      </p>
+      <h3 className="feature-title">{f.title}</h3>
+      <p className="feature-subtitle">{f.subtitle}</p>
+      <p className="feature-desc">{f.desc}</p>
 
-      {/* Bottom accent bar */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '2px',
-          background: `linear-gradient(90deg, transparent, ${f.accentColor}60, transparent)`,
-          borderRadius: '0 0 1rem 1rem',
-        }}
-      />
-    </div>
+      <span className="feature-arrow" aria-hidden="true"><ArrowIcon /></span>
+    </article>
   )
 }

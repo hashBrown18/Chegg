@@ -18,6 +18,23 @@
   --white:         #FFFFFF;
   --light-grey:    #A0A0B0;
 
+  /* ── Shared CHEGG Brand: Near-black × Purple ── */
+  --brand-bg:             #09080C;
+  --brand-panel:          #0F0D14;
+  --brand-surface:        #14111C;
+  --brand-surface-high:   #1A1624;
+  --brand-purple:         #8B3DFF;
+  --brand-purple-bright:  #A46BFF;
+  --brand-purple-soft:    rgba(139, 61, 255, 0.10);
+  --brand-border:         rgba(139, 61, 255, 0.18);
+  --brand-border-strong:  rgba(139, 61, 255, 0.45);
+  --brand-text:           #F5F3F7;
+  --brand-muted:          #9B96A6;
+  --brand-muted-light:    #C4BFCC;
+  --brand-danger:         #FF8A99;
+  --brand-danger-soft:    rgba(255, 91, 113, 0.08);
+  --brand-danger-border:  rgba(255, 91, 113, 0.28);
+
   /* ── CHEGG Landing Theme: Obsidian × Emerald × Gold ── */
   --obsidian:         #0A0A0C;
   --obsidian-surface: #111114;
@@ -273,6 +290,18 @@ body {
   animation: fadeIn 0.4s ease both;
 }
 
+/* ─── Text selection ─────────────────────────────────────────────────────── */
+
+::selection {
+  background: #8b3dff;
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: #8b3dff;
+  color: #ffffff;
+}
+
 /* ─── Scrollbar Styling ──────────────────────────────────────────────────── */
 
 html {
@@ -282,19 +311,19 @@ html {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--gold) var(--obsidian);
+  scrollbar-color: var(--brand-purple) var(--brand-bg);
 }
 
 /* Webkit (Chrome, Brave, Edge, Safari) */
 ::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-track { background: var(--obsidian); }
+::-webkit-scrollbar-track { background: var(--brand-bg); }
 ::-webkit-scrollbar-thumb {
-  background: var(--gold);
+  background: #8b3dff;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gold-bright);
-  box-shadow: 0 0 8px rgba(201, 168, 76, 0.5);
+  background: #a46bff;
+  box-shadow: 0 0 8px rgba(139, 61, 255, 0.5);
 }
 
 /* ─── Error / Status Messages ────────────────────────────────────────────── */

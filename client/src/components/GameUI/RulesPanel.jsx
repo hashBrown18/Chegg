@@ -4,7 +4,7 @@
  * RIGHT: egg image of the currently-scrolling minion section
  * Background: #50207A, Border: #838CE5
  */
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import './RulesPanel.css'
 
 const MINION_IMAGES = {
@@ -46,6 +46,19 @@ export default function RulesPanel({ onClose }) {
   const scrollRef = useRef(null)
   const sectionRefs = useRef({})
 
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [onClose])
+
   const handleScroll = useCallback(() => {
     const container = scrollRef.current
     if (!container) return
@@ -63,11 +76,17 @@ export default function RulesPanel({ onClose }) {
   }, [activeMinion])
 
   return (
-    <div className="rules-overlay animate-fade-in">
-      <div className="rules-modal animate-fade-in-up">
+    <div className="rules-overlay animate-fade-in" onClick={onClose}>
+      <div
+        className="rules-modal animate-fade-in-up"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rules-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="rules-modal-header">
-          <h2 className="rules-title font-display">Rule Book</h2>
+          <h2 className="rules-title font-display" id="rules-title">Rule Book</h2>
           <button
             id="rules-close-btn"
             className="rules-close-btn"

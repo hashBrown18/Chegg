@@ -8,6 +8,39 @@ import Loader from '../components/ui/Loader.jsx'
 import { setRoomSession } from '../roomSession.js'
 import './LobbyPage.css'
 
+function HashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" focusable="false">
+      <path d="M9 4 7.5 20M16.5 4 15 20M4 9h16M3 15h16" />
+    </svg>
+  )
+}
+
+function UserIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" focusable="false">
+      <path d="M12 4v16M4 12h16" />
+    </svg>
+  )
+}
+
+function JoinIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M4 12h14M12 5l7 7-7 7" />
+    </svg>
+  )
+}
+
 /**
  * LobbyPage — handles both Create Room (/create) and Join Room (/join)
  * Mode prop: 'create' | 'join'
@@ -211,7 +244,7 @@ export default function LobbyPage({ mode }) {
           <LiquidGlassCard className="lobby-card animate-fade-in-up">
             {/* Connecting loader — sits above the form, hidden once connected */}
             {!connected && (
-              <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: '1.5rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(74,74,82,0.25)' }}>
+              <div className="lobby-loader">
                 <Loader title="Connecting to backend..." subtitle="Please wait" size="sm" />
               </div>
             )}
@@ -236,10 +269,10 @@ export default function LobbyPage({ mode }) {
                   <span className="code-value font-mono">{generatedCode}</span>
                   <button
                     id="btn-copy-code"
-                    className="btn btn-ghost code-copy-btn"
+                    className={`btn code-copy-btn${copiedCode ? ' is-copied' : ''}`}
                     onClick={copyCode}
                   >
-                    {copiedCode ? '✓ Copied' : 'Copy Code'}
+                    {copiedCode ? 'Copied' : 'Copy Code'}
                   </button>
                 </div>
 
@@ -248,10 +281,10 @@ export default function LobbyPage({ mode }) {
                   <span className="share-link font-mono">{buildShareLink(generatedCode)}</span>
                   <button
                     id="btn-copy-link"
-                    className="btn btn-ghost code-copy-btn"
+                    className={`btn code-copy-btn${copiedLink ? ' is-copied' : ''}`}
                     onClick={copyLink}
                   >
-                    {copiedLink ? '✓ Copied' : 'Copy Link'}
+                    {copiedLink ? 'Copied' : 'Copy Link'}
                   </button>
                 </div>
 
@@ -264,7 +297,7 @@ export default function LobbyPage({ mode }) {
                   <div className="form-group">
                     <label className="form-label font-label">Room Code</label>
                     <div className="input-wrapper">
-                      <span className="input-icon">⌗</span>
+                      <span className="input-icon"><HashIcon /></span>
                       <input
                         id="input-room-code"
                         type="text"
@@ -284,7 +317,7 @@ export default function LobbyPage({ mode }) {
                 <div className="form-group">
                   <label className="form-label font-label">Username</label>
                   <div className="input-wrapper">
-                    <span className="input-icon">⚔</span>
+                    <span className="input-icon"><UserIcon /></span>
                     <input
                       id="input-username"
                       type="text"
@@ -323,9 +356,9 @@ export default function LobbyPage({ mode }) {
                   {loading ? (
                     <span className="spinner" />
                   ) : isCreate ? (
-                    '✕  Create Room'
+                    <span className="lobby-submit-icon"><PlusIcon /><span>Create Room</span></span>
                   ) : (
-                    '⚔  Join Room'
+                    <span className="lobby-submit-icon"><JoinIcon /><span>Join Room</span></span>
                   )}
                 </button>
 

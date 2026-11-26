@@ -6,6 +6,7 @@ import DeckBuilderPage from './pages/DeckBuilderPage.jsx'
 import GamePage from './pages/GamePage.jsx'
 import JoinRoomRedirect from './pages/JoinRoomRedirect.jsx'
 import SingleplayerPage from './pages/SingleplayerPage.jsx'
+import AboutPage from './pages/AboutPage.jsx'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route path="/create" element={<LobbyPage mode="create" />} />
           <Route path="/join" element={<LobbyPage mode="join" />} />
           <Route path="/join/:roomId" element={<JoinRoomRedirect />} />

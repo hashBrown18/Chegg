@@ -44,15 +44,15 @@ export default function LiquidGlassCard({ children, className = '', style = {}, 
 
   const cardStyle = {
     position: 'relative',
-    background: 'rgba(10, 18, 12, 0.82)', // Obsidian dark green
-    border: '1px solid rgba(16, 185, 129, 0.25)', // Subtle emerald border
+    background: 'rgba(15, 13, 20, 0.92)',
+    border: '1px solid var(--brand-border-strong)',
     borderRadius: '1.25rem',
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     boxShadow: `
-      0 0 24px rgba(16, 185, 129, 0.08), 
+      0 0 32px rgba(139, 61, 255, 0.10),
       0 8px 32px rgba(0, 0, 0, 0.5),
-      inset 0 0 12px rgba(16, 185, 129, 0.15)
+      inset 0 0 12px rgba(139, 61, 255, 0.10)
     `,
     overflow: 'hidden',
     transition: 'all 0.3s ease',
@@ -89,7 +89,7 @@ export default function LiquidGlassCard({ children, className = '', style = {}, 
           zIndex: 2,
           pointerEvents: 'none',
           borderRadius: 'inherit',
-          background: 'linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.05), transparent)',
+          background: 'linear-gradient(90deg, transparent, rgba(139, 61, 255, 0.08), transparent)',
           opacity: 0,
           transition: 'opacity 0.3s ease',
         }}
